@@ -877,3 +877,10 @@ p { margin: 0 0 1em; }
 .req-pending { background: rgba(226, 162, 59, 0.18); color: var(--amber-dark); }
 .req-approved { background: rgba(76, 123, 98, 0.15); color: var(--ok); }
 .req-rejected { background: rgba(177, 80, 62, 0.15); color: var(--danger); }
+
+.prompt-translation {
+  margin-top: 10px;
+  background: #f2ede0;
+  font-family: var(--font-body);
+}
+.prompt-translation strong { color: var(--board-dark); font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; }
