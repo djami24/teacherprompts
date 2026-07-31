@@ -242,8 +242,8 @@ function renderFolderPage(rootId) {
         ${
           unlocked
             ? `<div class="prompt-actions">
-                 <button class="btn btn-cta btn-sm copy-prompt-btn" data-id="${p.id}" data-lang="en">Nusxa olish (inglizcha)</button>
                  <button class="btn btn-chatgpt btn-sm chatgpt-open-btn" data-id="${p.id}" data-lang="en" title="ChatGPT'da ochish">ChatGPT'da ochish</button>
+                 <button class="btn btn-cta btn-sm copy-prompt-btn" data-id="${p.id}" data-lang="en">Nusxa olish (inglizcha)</button>
                </div>`
             : ""
         }
@@ -251,8 +251,8 @@ function renderFolderPage(rootId) {
           unlocked && p.promptTextUz
             ? `<div class="prompt-preview prompt-translation"><strong>Uzb:</strong><br>${escapeHtml(p.promptTextUz)}</div>
                <div class="prompt-actions">
-                 <button class="btn btn-outline btn-sm copy-prompt-btn" data-id="${p.id}" data-lang="uz">Nusxa olish (o'zbekcha)</button>
                  <button class="btn btn-chatgpt btn-sm chatgpt-open-btn" data-id="${p.id}" data-lang="uz" title="ChatGPT'da ochish">ChatGPT'da ochish</button>
+                 <button class="btn btn-outline btn-sm copy-prompt-btn" data-id="${p.id}" data-lang="uz">Nusxa olish (o'zbekcha)</button>
                </div>`
             : ""
         }
