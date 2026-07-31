@@ -1,497 +1,394 @@
 // ============================================================
-// Yordamchi
+// SAYT SOZLAMALARI — shu yerlarni o'zingizga moslang
 // ============================================================
-const MAX_PROMPTS_PER_FOLDER = 100;
+const SITE_CONFIG = {
+  currency: "so'm"
+};
 
-function showError(elId, msg) {
-  const el = document.getElementById(elId);
-  el.textContent = msg;
-  el.classList.add("show");
-  setTimeout(() => el.classList.remove("show"), 5000);
+// ============================================================
+// Yordamchi funksiyalar
+// ============================================================
+function formatPrice(price) {
+  if (!price || price === 0) return "Bepul";
+  return Number(price).toLocaleString("ru-RU") + " " + SITE_CONFIG.currency;
 }
 
-function showSuccess(elId, msg) {
-  const el = document.getElementById(elId);
-  el.textContent = msg;
-  el.classList.add("show");
-  setTimeout(() => el.classList.remove("show"), 3000);
-}
-
-function escapeHtmlAdmin(str) {
+function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str || "";
   return div.innerHTML;
 }
 
-function normalizeContactAdmin(contact) {
+function truncate(str, n) {
+  if (!str) return "";
+  return str.length > n ? str.slice(0, n) + "…" : str;
+}
+
+// Har bir brauzerga bitta doimiy ID beriladi — bu shu qurilmani "eslab qolish" uchun
+function getDeviceId() {
+  let id = localStorage.getItem("pd_deviceId");
+  if (!id) {
+    id = "dev_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem("pd_deviceId", id);
+  }
+  return id;
+}
+
+// Telegram username yoki telefon raqamini bir xil formatga keltirish (katta-kichik harf, bo'shliq, @ belgisi farqi bo'lmasin)
+function normalizeContact(contact) {
   return (contact || "").trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "");
 }
 
-// ============================================================
-// AUTENTIFIKATSIYA
-// ============================================================
-const authWrap = document.getElementById("authWrap");
-const adminShell = document.getElementById("adminShell");
-
-auth.onAuthStateChanged((user) => {
-  if (user) {
-    authWrap.style.display = "none";
-    adminShell.classList.add("open");
-    document.getElementById("whoEmail").textContent = user.email;
-    loadAdminFolders();
-    loadPurchaseRequests();
-  } else {
-    authWrap.style.display = "flex";
-    adminShell.classList.remove("open");
+function getTeacherProfile() {
+  try {
+    return JSON.parse(localStorage.getItem("pd_teacherProfile") || "null") || {};
+  } catch {
+    return {};
   }
-});
+}
 
-document.getElementById("loginForm").addEventListener("submit", (e) => {
-  e.preventDefault();
-  const email = document.getElementById("loginEmail").value.trim();
-  const password = document.getElementById("loginPassword").value;
+function saveTeacherProfile(profile) {
+  localStorage.setItem("pd_teacherProfile", JSON.stringify(profile));
+}
 
-  auth.signInWithEmailAndPassword(email, password).catch((err) => {
-    let msg = "Kirishda xatolik yuz berdi.";
-    if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password" || err.code === "auth/user-not-found") {
-      msg = "Email yoki parol noto'g'ri.";
-    }
-    showError("loginError", msg);
-  });
-});
-
-document.getElementById("logoutBtn").addEventListener("click", () => {
-  auth.signOut();
-});
+function purchaseDocId(folderId, contact) {
+  return folderId + "__" + normalizeContact(contact);
+}
 
 // ============================================================
-// TABLAR (Papkalar / So'rovlar)
+// PAPKALARNI Firestore'dan yuklash va grid ko'rinishida chiqarish
+// (index.html va oqituvchi.html shu funksiyadan foydalanadi)
 // ============================================================
-document.querySelectorAll(".admin-tab").forEach((tab) => {
-  tab.addEventListener("click", () => {
-    document.querySelectorAll(".admin-tab").forEach((t) => t.classList.remove("active"));
-    document.querySelectorAll(".admin-tabpanel").forEach((p) => p.classList.remove("active"));
-    tab.classList.add("active");
-    document.getElementById(tab.dataset.tab).classList.add("active");
-  });
-});
+let ALL_FOLDERS = [];
+let ACTIVE_SEARCH = "";
+let FOLDER_RENDER_OPTS = {};
 
-// ============================================================
-// PAPKALAR (CRUD)
-// ============================================================
-let EDITING_FOLDER_ID = null;
-let ADMIN_FOLDERS = [];
-let OPEN_FOLDER_ID = null; // hozir promptlari boshqarilayotgan papka
+function loadFolders(opts) {
+  FOLDER_RENDER_OPTS = opts;
+  const grid = document.getElementById(opts.gridId);
 
-function loadAdminFolders() {
   db.collection("folders")
     .orderBy("createdAt", "desc")
-    .onSnapshot(
-      (snapshot) => {
-        ADMIN_FOLDERS = [];
-        snapshot.forEach((doc) => ADMIN_FOLDERS.push({ id: doc.id, ...doc.data() }));
-        renderAdminFolderList();
-        populateRequestFolderSelect();
-      },
-      (err) => {
-        document.getElementById("adminFolderList").innerHTML =
-          `<div class="empty-state">Ma'lumotlarni yuklab bo'lmadi: ${escapeHtmlAdmin(err.message)}</div>`;
-      }
-    );
-}
-
-function renderAdminFolderList() {
-  const list = document.getElementById("adminFolderList");
-  document.getElementById("adminFolderCount").textContent = ADMIN_FOLDERS.length + " ta";
-
-  if (ADMIN_FOLDERS.length === 0) {
-    list.innerHTML = `<div class="empty-state">Hozircha papkalar yo'q. Chapdagi formadan qo'shing.</div>`;
-    return;
-  }
-
-  list.innerHTML = ADMIN_FOLDERS.map((f) => `
-    <div class="admin-row">
-      <div class="info">
-        <h3>📁 ${escapeHtmlAdmin(f.name)}</h3>
-        <span class="meta">${f.promptCount || 0}/${MAX_PROMPTS_PER_FOLDER} ta prompt · ${f.price ? Number(f.price).toLocaleString("ru-RU") + " so'm" : "Bepul"}</span>
-      </div>
-      <button class="icon-btn" data-manage="${f.id}">Promptlar</button>
-      <button class="icon-btn" data-edit="${f.id}">Tahrirlash</button>
-      <button class="icon-btn danger" data-delete="${f.id}">O'chirish</button>
-    </div>
-  `).join("");
-
-  list.querySelectorAll("[data-manage]").forEach((btn) => {
-    btn.addEventListener("click", () => openFolderPrompts(btn.dataset.manage));
-  });
-  list.querySelectorAll("[data-edit]").forEach((btn) => {
-    btn.addEventListener("click", () => startEditFolder(btn.dataset.edit));
-  });
-  list.querySelectorAll("[data-delete]").forEach((btn) => {
-    btn.addEventListener("click", () => deleteFolder(btn.dataset.delete));
-  });
-}
-
-function startEditFolder(id) {
-  const f = ADMIN_FOLDERS.find((x) => x.id === id);
-  if (!f) return;
-  EDITING_FOLDER_ID = id;
-
-  document.getElementById("folderFormTitle").textContent = "Papkani tahrirlash";
-  document.getElementById("fName").value = f.name || "";
-  document.getElementById("fDescription").value = f.description || "";
-  document.getElementById("fPrice").value = f.price || 0;
-  document.getElementById("folderSubmitBtn").textContent = "Saqlash";
-  document.getElementById("folderCancelEditBtn").style.display = "block";
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-function resetFolderForm() {
-  EDITING_FOLDER_ID = null;
-  document.getElementById("folderForm").reset();
-  document.getElementById("fPrice").value = 0;
-  document.getElementById("folderFormTitle").textContent = "Yangi papka qo'shish";
-  document.getElementById("folderSubmitBtn").textContent = "Qo'shish";
-  document.getElementById("folderCancelEditBtn").style.display = "none";
-}
-
-document.getElementById("folderCancelEditBtn").addEventListener("click", resetFolderForm);
-
-document.getElementById("folderForm").addEventListener("submit", (e) => {
-  e.preventDefault();
-
-  const data = {
-    name: document.getElementById("fName").value.trim(),
-    description: document.getElementById("fDescription").value.trim(),
-    price: Number(document.getElementById("fPrice").value) || 0
-  };
-
-  const submitBtn = document.getElementById("folderSubmitBtn");
-  submitBtn.disabled = true;
-
-  if (EDITING_FOLDER_ID) {
-    db.collection("folders").doc(EDITING_FOLDER_ID).update(data)
-      .then(() => {
-        showSuccess("folderFormSuccess", "Papka yangilandi.");
-        resetFolderForm();
-      })
-      .catch((err) => showError("folderFormError", "Xatolik: " + err.message))
-      .finally(() => (submitBtn.disabled = false));
-  } else {
-    data.promptCount = 0;
-    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-    db.collection("folders").add(data)
-      .then(() => {
-        showSuccess("folderFormSuccess", "Papka qo'shildi.");
-        resetFolderForm();
-      })
-      .catch((err) => showError("folderFormError", "Xatolik: " + err.message))
-      .finally(() => (submitBtn.disabled = false));
-  }
-});
-
-function deleteFolder(id) {
-  if (!confirm("Bu papkani va ichidagi BARCHA promptlarni o'chirmoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi.")) return;
-  db.collection("folders").doc(id).collection("prompts").get()
+    .get()
     .then((snapshot) => {
-      const batch = db.batch();
-      snapshot.forEach((d) => batch.delete(d.ref));
-      batch.delete(db.collection("folders").doc(id));
-      return batch.commit();
-    })
-    .then(() => {
-      if (OPEN_FOLDER_ID === id) closeFolderPrompts();
-    })
-    .catch((err) => alert("O'chirishda xatolik: " + err.message));
-}
+      ALL_FOLDERS = [];
+      snapshot.forEach((doc) => {
+        ALL_FOLDERS.push({ id: doc.id, ...doc.data() });
+      });
 
-// ============================================================
-// PAPKA ICHIDAGI PROMPTLAR (CRUD, MAX 100)
-// ============================================================
-let EDITING_PROMPT_ID = null;
-let FOLDER_PROMPTS = [];
-let FOLDER_PROMPTS_UNSUB = null;
-
-function openFolderPrompts(folderId) {
-  OPEN_FOLDER_ID = folderId;
-  const f = ADMIN_FOLDERS.find((x) => x.id === folderId);
-  document.getElementById("folderPromptsPanel").style.display = "block";
-  document.getElementById("folderPromptsTitle").textContent = "📁 " + (f ? f.name : "");
-  document.getElementById("folderListSection").style.display = "none";
-  resetPromptForm();
-
-  if (FOLDER_PROMPTS_UNSUB) FOLDER_PROMPTS_UNSUB();
-  FOLDER_PROMPTS_UNSUB = db.collection("folders").doc(folderId).collection("prompts")
-    .orderBy("createdAt", "asc")
-    .onSnapshot(
-      (snapshot) => {
-        FOLDER_PROMPTS = [];
-        snapshot.forEach((d) => FOLDER_PROMPTS.push({ id: d.id, ...d.data() }));
-        renderFolderPromptsList();
-      },
-      (err) => {
-        document.getElementById("folderPromptsList").innerHTML =
-          `<div class="empty-state">Yuklab bo'lmadi: ${escapeHtmlAdmin(err.message)}</div>`;
+      const statCount = document.getElementById("statCount");
+      if (statCount) {
+        const totalPrompts = ALL_FOLDERS.reduce((sum, f) => sum + (f.promptCount || 0), 0);
+        statCount.textContent = totalPrompts;
       }
+
+      renderFolderGrid();
+
+      if (opts.searchInputId) {
+        document.getElementById(opts.searchInputId).addEventListener("input", (e) => {
+          ACTIVE_SEARCH = e.target.value.trim().toLowerCase();
+          renderFolderGrid();
+        });
+      }
+    })
+    .catch((err) => {
+      console.error("Papkalarni yuklashda xato:", err);
+      if (grid) {
+        grid.innerHTML = `<div class="empty-state">Papkalarni yuklab bo'lmadi. Firebase sozlamalarini tekshiring.<br><span style="font-size:0.75rem;">(${escapeHtml(err.message)})</span></div>`;
+      }
+    });
+}
+
+function renderFolderGrid() {
+  const grid = document.getElementById(FOLDER_RENDER_OPTS.gridId);
+  if (!grid) return;
+
+  let list = ALL_FOLDERS;
+  if (ACTIVE_SEARCH) {
+    list = list.filter((f) =>
+      (f.name || "").toLowerCase().includes(ACTIVE_SEARCH) ||
+      (f.description || "").toLowerCase().includes(ACTIVE_SEARCH)
     );
-
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-function closeFolderPrompts() {
-  OPEN_FOLDER_ID = null;
-  if (FOLDER_PROMPTS_UNSUB) FOLDER_PROMPTS_UNSUB();
-  document.getElementById("folderPromptsPanel").style.display = "none";
-  document.getElementById("folderListSection").style.display = "block";
-}
-
-document.getElementById("backToFoldersBtn").addEventListener("click", closeFolderPrompts);
-
-function renderFolderPromptsList() {
-  const list = document.getElementById("folderPromptsList");
-  document.getElementById("folderPromptsCount").textContent = FOLDER_PROMPTS.length + "/" + MAX_PROMPTS_PER_FOLDER;
-
-  const addBtn = document.getElementById("promptSubmitBtn");
-  const limitMsg = document.getElementById("promptLimitMsg");
-  if (!EDITING_PROMPT_ID && FOLDER_PROMPTS.length >= MAX_PROMPTS_PER_FOLDER) {
-    addBtn.disabled = true;
-    limitMsg.style.display = "block";
-  } else {
-    addBtn.disabled = false;
-    limitMsg.style.display = "none";
+  }
+  if (FOLDER_RENDER_OPTS.limitCount) {
+    list = list.slice(0, FOLDER_RENDER_OPTS.limitCount);
   }
 
-  if (FOLDER_PROMPTS.length === 0) {
-    list.innerHTML = `<div class="empty-state">Bu papkada hali prompt yo'q. Chapdagi formadan qo'shing.</div>`;
+  if (list.length === 0) {
+    grid.innerHTML = `<div class="empty-state">Hozircha papkalar topilmadi.</div>`;
     return;
   }
 
-  list.innerHTML = FOLDER_PROMPTS.map((p) => `
-    <div class="admin-row">
-      <div class="info">
-        <h3>${p.isFree ? "🟢" : "🔒"} ${escapeHtmlAdmin(p.title)}</h3>
-        <span class="meta">${escapeHtmlAdmin(p.category || "—")}${p.grade ? " · " + escapeHtmlAdmin(p.grade) : ""} · ${p.isFree ? "Bepul namuna" : "Pullik (papka narxida)"}</span>
+  grid.innerHTML = list.map((f) => renderFolderCard(f)).join("");
+  grid.querySelectorAll(".folder-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      window.location.href = "papka.html?id=" + encodeURIComponent(card.dataset.id);
+    });
+  });
+}
+
+function renderFolderCard(f) {
+  const count = f.promptCount || 0;
+  return `
+    <article class="folder-card" data-id="${f.id}">
+      <div class="folder-card-top">
+        <span class="folder-icon">📁</span>
+        <span class="price-sticker">${formatPrice(f.price)}</span>
       </div>
-      <button class="icon-btn" data-edit="${p.id}">Tahrirlash</button>
-      <button class="icon-btn danger" data-delete="${p.id}">O'chirish</button>
-    </div>
-  `).join("");
-
-  list.querySelectorAll("[data-edit]").forEach((btn) => {
-    btn.addEventListener("click", () => startEditPrompt(btn.dataset.edit));
-  });
-  list.querySelectorAll("[data-delete]").forEach((btn) => {
-    btn.addEventListener("click", () => deletePrompt(btn.dataset.delete));
-  });
+      <h3>${escapeHtml(f.name)}</h3>
+      <p class="desc">${escapeHtml(f.description || "")}</p>
+      <div class="folder-card-footer">
+        <span class="folder-count">${count} ta prompt</span>
+        <span class="folder-free-badge">1 tasi bepul</span>
+      </div>
+    </article>
+  `;
 }
 
-function startEditPrompt(id) {
-  const p = FOLDER_PROMPTS.find((x) => x.id === id);
-  if (!p) return;
-  EDITING_PROMPT_ID = id;
+// ============================================================
+// BITTA PAPKA SAHIFASI (papka.html)
+// ============================================================
+let CURRENT_FOLDER = null;
+let CURRENT_FOLDER_PROMPTS = [];
+let HAS_ACCESS = false;
+let ACCESS_UNSUB = null;
 
-  document.getElementById("promptFormTitle").textContent = "Promptni tahrirlash";
-  document.getElementById("pTitle").value = p.title || "";
-  document.getElementById("pCategory").value = p.category || "";
-  document.getElementById("pGrade").value = p.grade || "";
-  document.getElementById("pDescription").value = p.description || "";
-  document.getElementById("pIsFree").checked = !!p.isFree;
-  document.getElementById("pPromptText").value = p.promptText || "";
-  document.getElementById("promptSubmitBtn").textContent = "Saqlash";
-  document.getElementById("promptCancelEditBtn").style.display = "block";
-  renderFolderPromptsList();
-}
+function loadFolderPage(rootId) {
+  const params = new URLSearchParams(window.location.search);
+  const folderId = params.get("id");
+  const root = document.getElementById(rootId);
 
-function resetPromptForm() {
-  EDITING_PROMPT_ID = null;
-  document.getElementById("promptForm").reset();
-  document.getElementById("promptFormTitle").textContent = "Yangi prompt qo'shish";
-  document.getElementById("promptSubmitBtn").textContent = "Qo'shish";
-  document.getElementById("promptCancelEditBtn").style.display = "none";
-}
-
-document.getElementById("promptCancelEditBtn").addEventListener("click", resetPromptForm);
-
-document.getElementById("promptForm").addEventListener("submit", (e) => {
-  e.preventDefault();
-  if (!OPEN_FOLDER_ID) return;
-
-  const data = {
-    title: document.getElementById("pTitle").value.trim(),
-    category: document.getElementById("pCategory").value.trim(),
-    grade: document.getElementById("pGrade").value.trim(),
-    description: document.getElementById("pDescription").value.trim(),
-    isFree: document.getElementById("pIsFree").checked,
-    promptText: document.getElementById("pPromptText").value
-  };
-
-  const submitBtn = document.getElementById("promptSubmitBtn");
-  submitBtn.disabled = true;
-
-  const folderRef = db.collection("folders").doc(OPEN_FOLDER_ID);
-  const promptsRef = folderRef.collection("prompts");
-
-  if (EDITING_PROMPT_ID) {
-    promptsRef.doc(EDITING_PROMPT_ID).update(data)
-      .then(() => {
-        showSuccess("promptFormSuccess", "Prompt yangilandi.");
-        resetPromptForm();
-      })
-      .catch((err) => showError("promptFormError", "Xatolik: " + err.message))
-      .finally(() => (submitBtn.disabled = false));
-  } else {
-    if (FOLDER_PROMPTS.length >= MAX_PROMPTS_PER_FOLDER) {
-      showError("promptFormError", "Bu papkada eng ko'p " + MAX_PROMPTS_PER_FOLDER + " ta prompt bo'lishi mumkin.");
-      submitBtn.disabled = false;
-      return;
-    }
-    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-    promptsRef.add(data)
-      .then(() => {
-        return folderRef.update({ promptCount: firebase.firestore.FieldValue.increment(1) });
-      })
-      .then(() => {
-        showSuccess("promptFormSuccess", "Prompt qo'shildi.");
-        resetPromptForm();
-      })
-      .catch((err) => showError("promptFormError", "Xatolik: " + err.message))
-      .finally(() => (submitBtn.disabled = false));
+  if (!folderId) {
+    root.innerHTML = `<div class="empty-state">Papka topilmadi.</div>`;
+    return;
   }
-});
 
-function deletePrompt(id) {
-  if (!confirm("Bu promptni o'chirmoqchimisiz?")) return;
-  const folderRef = db.collection("folders").doc(OPEN_FOLDER_ID);
-  folderRef.collection("prompts").doc(id).delete()
-    .then(() => folderRef.update({ promptCount: firebase.firestore.FieldValue.increment(-1) }))
-    .catch((err) => alert("O'chirishda xatolik: " + err.message));
-}
+  root.innerHTML = `<div class="loader">Papka yuklanmoqda...</div>`;
 
-// ============================================================
-// SO'ROVLAR (purchaseRequests) — tasdiqlash / rad etish
-// ============================================================
-let ALL_REQUESTS = [];
-
-function loadPurchaseRequests() {
-  db.collection("purchaseRequests")
-    .orderBy("createdAt", "desc")
-    .onSnapshot(
-      (snapshot) => {
-        ALL_REQUESTS = [];
-        snapshot.forEach((doc) => ALL_REQUESTS.push({ id: doc.id, ...doc.data() }));
-        renderRequests();
-      },
-      (err) => {
-        document.getElementById("requestsList").innerHTML =
-          `<div class="empty-state">Yuklab bo'lmadi: ${escapeHtmlAdmin(err.message)}</div>`;
+  db.collection("folders").doc(folderId).get()
+    .then((doc) => {
+      if (!doc.exists) {
+        root.innerHTML = `<div class="empty-state">Bunday papka topilmadi. U o'chirilgan bo'lishi mumkin.</div>`;
+        return;
       }
-    );
+      CURRENT_FOLDER = { id: doc.id, ...doc.data() };
+      return db.collection("folders").doc(folderId).collection("prompts")
+        .orderBy("createdAt", "asc").get();
+    })
+    .then((snapshot) => {
+      if (!snapshot) return;
+      CURRENT_FOLDER_PROMPTS = [];
+      snapshot.forEach((d) => CURRENT_FOLDER_PROMPTS.push({ id: d.id, ...d.data() }));
+      watchAccessAndRender(rootId);
+    })
+    .catch((err) => {
+      console.error(err);
+      root.innerHTML = `<div class="empty-state">Yuklashda xato: ${escapeHtml(err.message)}</div>`;
+    });
 }
 
-function renderRequests() {
-  const list = document.getElementById("requestsList");
-  const pending = ALL_REQUESTS.filter((r) => r.status === "pending");
-  const resolved = ALL_REQUESTS.filter((r) => r.status !== "pending").slice(0, 30);
+// Ruxsatni real-vaqtda kuzatish — admin tasdiqlagan zahoti sahifa avtomatik yangilanadi
+function watchAccessAndRender(rootId) {
+  if (ACCESS_UNSUB) ACCESS_UNSUB();
+  const profile = getTeacherProfile();
+  HAS_ACCESS = false;
 
-  document.getElementById("pendingCount").textContent = pending.length + " ta kutilmoqda";
+  const renderNow = () => renderFolderPage(rootId);
 
-  const renderRow = (r) => `
-    <div class="admin-row request-row">
-      <div class="info">
-        <h3>📁 ${escapeHtmlAdmin(r.folderName)} <span class="req-status req-${r.status}">${
-          r.status === "pending" ? "Kutilmoqda" : r.status === "approved" ? "Tasdiqlangan ✓" : "Rad etilgan ✕"
-        }</span></h3>
-        <span class="meta">${escapeHtmlAdmin(r.teacherName)} · ${escapeHtmlAdmin(r.teacherContact)} · ${r.folderPrice ? Number(r.folderPrice).toLocaleString("ru-RU") + " so'm" : "Bepul"}</span>
+  if (!profile.contact) {
+    renderNow();
+    return;
+  }
+
+  const docId = purchaseDocId(CURRENT_FOLDER.id, profile.contact);
+  ACCESS_UNSUB = db.collection("purchases").doc(docId).onSnapshot(
+    (doc) => {
+      const wasAccess = HAS_ACCESS;
+      HAS_ACCESS = doc.exists;
+      renderNow();
+      if (!wasAccess && HAS_ACCESS) {
+        const banner = document.getElementById("unlockBanner");
+        if (banner) banner.classList.add("show");
+      }
+    },
+    () => renderNow()
+  );
+}
+
+function renderFolderPage(rootId) {
+  const root = document.getElementById(rootId);
+  const f = CURRENT_FOLDER;
+  const prompts = CURRENT_FOLDER_PROMPTS;
+
+  const cardsHtml = prompts.map((p, idx) => {
+    const unlocked = p.isFree || HAS_ACCESS;
+    return `
+      <article class="prompt-card folder-prompt-card">
+        <div class="prompt-card-top">
+          <span class="prompt-tag">${escapeHtml(p.category || "Umumiy")}${p.grade ? " · " + escapeHtml(p.grade) : ""}</span>
+          ${p.isFree ? `<span class="price-sticker free">Bepul</span>` : (HAS_ACCESS ? `<span class="price-sticker free">Ochilgan ✓</span>` : `<span class="price-sticker">🔒</span>`)}
+        </div>
+        <h3>${escapeHtml(p.title)}</h3>
+        <p class="desc">${escapeHtml(p.description || "")}</p>
+        <div class="prompt-preview ${unlocked ? "" : "locked"}">${
+          unlocked ? escapeHtml(p.promptText || "") : escapeHtml(truncate(p.promptText || "", 140))
+        }</div>
+        ${
+          unlocked && p.promptTextUz
+            ? `<div class="prompt-preview prompt-translation"><strong>O'zbekcha tarjimasi:</strong><br>${escapeHtml(p.promptTextUz)}</div>`
+            : ""
+        }
+        ${
+          unlocked
+            ? `<button class="btn btn-cta btn-block copy-prompt-btn" data-id="${p.id}">Nusxa olish</button>`
+            : `<button class="btn btn-ghost btn-block">Qulflangan — papkani sotib oling</button>`
+        }
+      </article>
+    `;
+  }).join("");
+
+  root.innerHTML = `
+    <div class="folder-header">
+      <a href="oqituvchi.html" class="folder-back">← Barcha papkalar</a>
+      <h1>${escapeHtml(f.name)}</h1>
+      <p class="lead">${escapeHtml(f.description || "")}</p>
+      <div class="folder-header-meta">
+        <span>${prompts.length} ta prompt</span>
+        <span>·</span>
+        <span>1 tasi bepul, qolganlari — <strong>${formatPrice(f.price)}</strong></span>
       </div>
+      <div class="unlock-banner" id="unlockBanner">🎉 Ushbu papka siz uchun ochildi! Barcha promptlardan foydalanishingiz mumkin.</div>
       ${
-        r.status === "pending"
-          ? `<button class="icon-btn" data-approve="${r.id}">✓ Tasdiqlash</button>
-             <button class="icon-btn danger" data-reject="${r.id}">✕ Rad etish</button>`
-          : ``
+        HAS_ACCESS
+          ? ``
+          : `<button class="btn btn-cta" id="buyFolderBtn">Papkani sotib olish — ${formatPrice(f.price)}</button>`
       }
+    </div>
+    <div class="prompt-grid folder-prompt-grid">
+      ${cardsHtml || `<div class="empty-state">Bu papkada hozircha prompt yo'q.</div>`}
     </div>
   `;
 
-  let html = "";
-  if (pending.length === 0 && resolved.length === 0) {
-    html = `<div class="empty-state">Hozircha so'rovlar yo'q.</div>`;
-  } else {
-    if (pending.length > 0) html += pending.map(renderRow).join("");
-    if (resolved.length > 0) {
-      html += `<div class="admin-table-head" style="margin-top:24px;"><h2 style="font-size:0.95rem;">Oldingi so'rovlar</h2></div>`;
-      html += resolved.map(renderRow).join("");
+  const buyBtn = document.getElementById("buyFolderBtn");
+  if (buyBtn) buyBtn.addEventListener("click", () => openPurchaseModal(f));
+
+  root.querySelectorAll(".copy-prompt-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const p = prompts.find((x) => x.id === btn.dataset.id);
+      navigator.clipboard.writeText(p ? (p.promptText || "") : "");
+      btn.textContent = "Nusxalandi ✓";
+      setTimeout(() => (btn.textContent = "Nusxa olish"), 1800);
+    });
+  });
+}
+
+// ============================================================
+// SOTIB OLISH MODALI — ism/kontakt so'raladi, so'rov yaratiladi,
+// adminga Telegram orqali avtomatik xabar boradi
+// ============================================================
+function openPurchaseModal(folder) {
+  const profile = getTeacherProfile();
+  const body = `
+    <button class="modal-close" id="modalCloseBtn" aria-label="Yopish">×</button>
+    <h2>«${escapeHtml(folder.name)}» papkasini sotib olish</h2>
+    <p style="color:var(--text-muted); margin-top:-6px;">Narxi: <strong>${formatPrice(folder.price)}</strong></p>
+    <div class="form-error" id="purchaseError"></div>
+    <div id="purchaseFormWrap">
+      <div class="field">
+        <label for="buyerName">Ismingiz</label>
+        <input type="text" id="buyerName" value="${escapeHtml(profile.name || "")}" placeholder="Masalan: Malika Yusupova">
+      </div>
+      <div class="field">
+        <label for="buyerContact">Telegram username (yoki telefon raqam)</label>
+        <input type="text" id="buyerContact" value="${escapeHtml(profile.contact || "")}" placeholder="@username yoki +998...">
+        <div class="field-hint">Shu ma'lumot orqali admin siz ekaningizni tanib, papkani sizga ochadi.</div>
+      </div>
+      <button class="btn btn-cta btn-block" id="sendRequestBtn">So'rov yuborish</button>
+    </div>
+    <div id="purchaseDoneWrap" style="display:none;">
+      <div class="unlock-banner show" style="position:static;">So'rovingiz yuborildi ✓</div>
+      <p style="margin-top:14px;">Endi to'lovni amalga oshirib, <strong>to'lov skrinshotini</strong> Telegram orqali yuboring. Admin tekshirib, tasdiqlagach — bu papka avtomatik sizga ochiladi (sahifani qayta yuklash shart emas).</p>
+      <a class="btn btn-cta btn-block" target="_blank" rel="noopener" id="tgLink">Telegram orqali skrinshot yuborish</a>
+    </div>
+  `;
+
+  const content = document.getElementById("modalContent");
+  content.innerHTML = body;
+  document.getElementById("modalBackdrop").classList.add("open");
+  document.getElementById("modalCloseBtn").addEventListener("click", closeModal);
+
+  document.getElementById("sendRequestBtn").addEventListener("click", () => {
+    const name = document.getElementById("buyerName").value.trim();
+    const contact = document.getElementById("buyerContact").value.trim();
+    const errEl = document.getElementById("purchaseError");
+
+    if (!name || !contact) {
+      errEl.textContent = "Iltimos, ism va kontaktni to'ldiring.";
+      errEl.classList.add("show");
+      return;
     }
+    errEl.classList.remove("show");
+
+    const btn = document.getElementById("sendRequestBtn");
+    btn.disabled = true;
+    btn.textContent = "Yuborilmoqda...";
+
+    saveTeacherProfile({ name, contact });
+
+    const reqData = {
+      folderId: folder.id,
+      folderName: folder.name,
+      folderPrice: folder.price || 0,
+      teacherName: name,
+      teacherContact: contact,
+      deviceId: getDeviceId(),
+      status: "pending",
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    db.collection("purchaseRequests").add(reqData)
+      .then((docRef) => {
+        const msg =
+          `🆕 <b>Yangi so'rov</b>\n` +
+          `Papka: <b>${escapeHtml(folder.name)}</b>\n` +
+          `Narxi: ${formatPrice(folder.price)}\n` +
+          `Ism: ${escapeHtml(name)}\n` +
+          `Kontakt: ${escapeHtml(contact)}\n` +
+          `So'rov ID: ${docRef.id}\n\n` +
+          `Skrinshot kutilmoqda. Tasdiqlash uchun admin panelga o'ting.`;
+        notifyAdminTelegram(msg);
+
+        document.getElementById("purchaseFormWrap").style.display = "none";
+        document.getElementById("purchaseDoneWrap").style.display = "block";
+        const tgLink = document.getElementById("tgLink");
+        tgLink.href = `https://t.me/${TELEGRAM_CONFIG.adminUsername}?text=${encodeURIComponent(
+          "Assalomu alaykum! \"" + folder.name + "\" papkasi uchun to'lov skrinshotini yuboraman. (So'rov ID: " + docRef.id + ")"
+        )}`;
+
+        watchAccessAndRender("folderRoot");
+      })
+      .catch((err) => {
+        errEl.textContent = "Xatolik: " + err.message;
+        errEl.classList.add("show");
+        btn.disabled = false;
+        btn.textContent = "So'rov yuborish";
+      });
+  });
+}
+
+function closeModal() {
+  const backdrop = document.getElementById("modalBackdrop");
+  if (backdrop) backdrop.classList.remove("open");
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const backdrop = document.getElementById("modalBackdrop");
+  if (backdrop) {
+    backdrop.addEventListener("click", (e) => {
+      if (e.target === backdrop) closeModal();
+    });
   }
-  list.innerHTML = html;
-
-  list.querySelectorAll("[data-approve]").forEach((btn) => {
-    btn.addEventListener("click", () => approveRequest(btn.dataset.approve));
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeModal();
   });
-  list.querySelectorAll("[data-reject]").forEach((btn) => {
-    btn.addEventListener("click", () => rejectRequest(btn.dataset.reject));
-  });
-}
-
-function approveRequest(id) {
-  const r = ALL_REQUESTS.find((x) => x.id === id);
-  if (!r) return;
-  if (!confirm(`"${r.folderName}" papkasini ${r.teacherName} (${r.teacherContact}) uchun ochmoqchimisiz?`)) return;
-
-  const purchaseId = r.folderId + "__" + normalizeContactAdmin(r.teacherContact);
-  const batch = db.batch();
-  batch.set(db.collection("purchases").doc(purchaseId), {
-    folderId: r.folderId,
-    folderName: r.folderName,
-    contact: r.teacherContact,
-    teacherName: r.teacherName,
-    requestId: r.id,
-    approvedAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  batch.update(db.collection("purchaseRequests").doc(id), {
-    status: "approved",
-    resolvedAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-
-  batch.commit().catch((err) => alert("Xatolik: " + err.message));
-}
-
-function rejectRequest(id) {
-  if (!confirm("Bu so'rovni rad etmoqchimisiz?")) return;
-  db.collection("purchaseRequests").doc(id).update({
-    status: "rejected",
-    resolvedAt: firebase.firestore.FieldValue.serverTimestamp()
-  }).catch((err) => alert("Xatolik: " + err.message));
-}
-
-// ============================================================
-// QO'LDA RUXSAT BERISH (so'rovsiz ham papka ochib berish)
-// ============================================================
-function populateRequestFolderSelect() {
-  const sel = document.getElementById("manualFolderSelect");
-  if (!sel) return;
-  const current = sel.value;
-  sel.innerHTML = ADMIN_FOLDERS.map((f) => `<option value="${f.id}">${escapeHtmlAdmin(f.name)}</option>`).join("");
-  if (current) sel.value = current;
-}
-
-document.getElementById("manualGrantForm").addEventListener("submit", (e) => {
-  e.preventDefault();
-  const folderId = document.getElementById("manualFolderSelect").value;
-  const name = document.getElementById("manualName").value.trim();
-  const contact = document.getElementById("manualContact").value.trim();
-  if (!folderId || !name || !contact) return;
-
-  const f = ADMIN_FOLDERS.find((x) => x.id === folderId);
-  const purchaseId = folderId + "__" + normalizeContactAdmin(contact);
-
-  db.collection("purchases").doc(purchaseId).set({
-    folderId,
-    folderName: f ? f.name : "",
-    contact,
-    teacherName: name,
-    approvedAt: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(() => {
-    showSuccess("manualGrantSuccess", "Ruxsat berildi.");
-    document.getElementById("manualGrantForm").reset();
-  }).catch((err) => alert("Xatolik: " + err.message));
 });
