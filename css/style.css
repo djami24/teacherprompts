@@ -495,6 +495,18 @@ p { margin: 0 0 1em; }
 }
 .prompt-card .btn-outline:hover { background: rgba(76, 123, 98, 0.1); }
 
+.prompt-actions {
+  display: flex;
+  gap: 8px;
+}
+.prompt-actions .btn { flex: 1; justify-content: center; }
+
+.btn-chatgpt {
+  background: #10a37f;
+  color: #fff;
+}
+.btn-chatgpt:hover { background: #0d8a6c; }
+
 .prompt-card.is-open .prompt-toggle { transform: rotate(90deg); }
 
 .prompt-card-body {
