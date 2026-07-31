@@ -234,14 +234,20 @@ function renderFolderPage(rootId) {
           unlocked ? escapeHtml(p.promptText || "") : escapeHtml(truncate(p.promptText || "", 140))
         }</div>
         ${
-          unlocked && p.promptTextUz
-            ? `<div class="prompt-preview prompt-translation"><strong>O'zbekcha tarjimasi:</strong><br>${escapeHtml(p.promptTextUz)}</div>`
+          unlocked
+            ? `<button class="btn btn-cta btn-block copy-prompt-btn" data-id="${p.id}" data-lang="en">Nusxa olish (inglizcha)</button>`
             : ""
         }
         ${
-          unlocked
-            ? `<button class="btn btn-cta btn-block copy-prompt-btn" data-id="${p.id}">Nusxa olish</button>`
-            : `<button class="btn btn-ghost btn-block">Qulflangan — papkani sotib oling</button>`
+          unlocked && p.promptTextUz
+            ? `<div class="prompt-preview prompt-translation"><strong>O'zbekcha tarjimasi:</strong><br>${escapeHtml(p.promptTextUz)}</div>
+               <button class="btn btn-outline btn-block copy-prompt-btn" data-id="${p.id}" data-lang="uz">Nusxa olish (o'zbekcha)</button>`
+            : ""
+        }
+        ${
+          !unlocked
+            ? `<button class="btn btn-ghost btn-block">Qulflangan — papkani sotib oling</button>`
+            : ""
         }
       </article>
     `;
@@ -275,9 +281,12 @@ function renderFolderPage(rootId) {
   root.querySelectorAll(".copy-prompt-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const p = prompts.find((x) => x.id === btn.dataset.id);
-      navigator.clipboard.writeText(p ? (p.promptText || "") : "");
+      if (!p) return;
+      const text = btn.dataset.lang === "uz" ? (p.promptTextUz || "") : (p.promptText || "");
+      navigator.clipboard.writeText(text);
+      const original = btn.dataset.lang === "uz" ? "Nusxa olish (o'zbekcha)" : "Nusxa olish (inglizcha)";
       btn.textContent = "Nusxalandi ✓";
-      setTimeout(() => (btn.textContent = "Nusxa olish"), 1800);
+      setTimeout(() => (btn.textContent = original), 1800);
     });
   });
 }
