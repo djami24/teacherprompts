@@ -234,6 +234,11 @@ function renderFolderPage(rootId) {
           unlocked ? escapeHtml(p.promptText || "") : escapeHtml(truncate(p.promptText || "", 140))
         }</div>
         ${
+          unlocked && p.promptTextUz
+            ? `<div class="prompt-preview prompt-translation"><strong>O'zbekcha tarjimasi:</strong><br>${escapeHtml(p.promptTextUz)}</div>`
+            : ""
+        }
+        ${
           unlocked
             ? `<button class="btn btn-cta btn-block copy-prompt-btn" data-id="${p.id}">Nusxa olish</button>`
             : `<button class="btn btn-ghost btn-block">Qulflangan — papkani sotib oling</button>`
