@@ -206,6 +206,12 @@ p { margin: 0 0 1em; }
 .btn-block { width: 100%; justify-content: center; }
 .btn[disabled] { opacity: 0.55; cursor: not-allowed; }
 
+.btn-sm {
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  border-radius: 8px;
+}
+
 /* ============================================================
    HERO
    ============================================================ */
@@ -454,6 +460,40 @@ p { margin: 0 0 1em; }
 .prompt-card h3 {
   font-size: 1.12rem;
   margin: 4px 0 0;
+}
+
+.prompt-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.prompt-card-header h3 { margin: 0; }
+
+.prompt-toggle {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  background: transparent;
+  color: var(--board-dark);
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.prompt-toggle:hover { border-color: var(--amber); background: rgba(226, 162, 59, 0.1); }
+
+.prompt-card.is-open .prompt-toggle { transform: rotate(90deg); }
+
+.prompt-card-body {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .prompt-card .desc {
