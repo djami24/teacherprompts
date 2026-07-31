@@ -488,6 +488,13 @@ p { margin: 0 0 1em; }
 
 .prompt-toggle:hover { border-color: var(--amber); background: rgba(226, 162, 59, 0.1); }
 
+.prompt-card .btn-outline {
+  border-color: var(--ok);
+  color: var(--ok);
+  background: transparent;
+}
+.prompt-card .btn-outline:hover { background: rgba(76, 123, 98, 0.1); }
+
 .prompt-card.is-open .prompt-toggle { transform: rotate(90deg); }
 
 .prompt-card-body {
