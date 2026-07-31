@@ -231,7 +231,7 @@ function renderFolderPage(rootId) {
         <h3>${escapeHtml(p.title)}</h3>
         <p class="desc">${escapeHtml(p.description || "")}</p>
         <div class="prompt-preview ${unlocked ? "" : "locked"}">${
-          unlocked ? escapeHtml(p.promptText || "") : escapeHtml(truncate(p.promptText || "", 140))
+          unlocked ? `<strong>Eng:</strong><br>` + escapeHtml(p.promptText || "") : escapeHtml(truncate(p.promptText || "", 140))
         }</div>
         ${
           unlocked
@@ -240,7 +240,7 @@ function renderFolderPage(rootId) {
         }
         ${
           unlocked && p.promptTextUz
-            ? `<div class="prompt-preview prompt-translation"><strong>O'zbekcha tarjimasi:</strong><br>${escapeHtml(p.promptTextUz)}</div>
+            ? `<div class="prompt-preview prompt-translation"><strong>Uzb:</strong><br>${escapeHtml(p.promptTextUz)}</div>
                <button class="btn btn-outline btn-block copy-prompt-btn" data-id="${p.id}" data-lang="uz">Nusxa olish (o'zbekcha)</button>`
             : ""
         }
