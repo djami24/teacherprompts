@@ -241,13 +241,19 @@ function renderFolderPage(rootId) {
         }</div>
         ${
           unlocked
-            ? `<button class="btn btn-cta btn-sm btn-block copy-prompt-btn" data-id="${p.id}" data-lang="en">Nusxa olish (inglizcha)</button>`
+            ? `<div class="prompt-actions">
+                 <button class="btn btn-cta btn-sm copy-prompt-btn" data-id="${p.id}" data-lang="en">Nusxa olish (inglizcha)</button>
+                 <button class="btn btn-chatgpt btn-sm chatgpt-open-btn" data-id="${p.id}" data-lang="en" title="ChatGPT'da ochish">ChatGPT'da ochish</button>
+               </div>`
             : ""
         }
         ${
           unlocked && p.promptTextUz
             ? `<div class="prompt-preview prompt-translation"><strong>Uzb:</strong><br>${escapeHtml(p.promptTextUz)}</div>
-               <button class="btn btn-outline btn-sm btn-block copy-prompt-btn" data-id="${p.id}" data-lang="uz">Nusxa olish (o'zbekcha)</button>`
+               <div class="prompt-actions">
+                 <button class="btn btn-outline btn-sm copy-prompt-btn" data-id="${p.id}" data-lang="uz">Nusxa olish (o'zbekcha)</button>
+                 <button class="btn btn-chatgpt btn-sm chatgpt-open-btn" data-id="${p.id}" data-lang="uz" title="ChatGPT'da ochish">ChatGPT'da ochish</button>
+               </div>`
             : ""
         }
         ${
@@ -304,6 +310,17 @@ function renderFolderPage(rootId) {
       const original = btn.dataset.lang === "uz" ? "Nusxa olish (o'zbekcha)" : "Nusxa olish (inglizcha)";
       btn.textContent = "Nusxalandi ✓";
       setTimeout(() => (btn.textContent = original), 1800);
+    });
+  });
+
+  root.querySelectorAll(".chatgpt-open-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const p = prompts.find((x) => x.id === btn.dataset.id);
+      if (!p) return;
+      const text = btn.dataset.lang === "uz" ? (p.promptTextUz || "") : (p.promptText || "");
+      if (!text) return;
+      const url = "https://chatgpt.com/?q=" + encodeURIComponent(text);
+      window.open(url, "_blank", "noopener");
     });
   });
 }
