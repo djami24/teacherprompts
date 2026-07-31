@@ -7,12 +7,13 @@
 // ============================================================
 
 const firebaseConfig = {
-  apiKey: "BU_YERGA_API_KEY",
-  authDomain: "BU_YERGA_LOYIHA.firebaseapp.com",
-  projectId: "BU_YERGA_LOYIHA_ID",
-  storageBucket: "BU_YERGA_LOYIHA.appspot.com",
-  messagingSenderId: "BU_YERGA_SENDER_ID",
-  appId: "BU_YERGA_APP_ID"
+  apiKey: "AIzaSyD5Bn-fXdxJsefHxfo5P0NZNLJ-rpi-Fkc",
+  authDomain: "teacherprompt-4e05b.firebaseapp.com",
+  projectId: "teacherprompt-4e05b",
+  storageBucket: "teacherprompt-4e05b.firebasestorage.app",
+  messagingSenderId: "159944546539",
+  appId: "1:159944546539:web:51764c5fcbcda45a2b46ae",
+  measurementId: "G-NVWPJY366Q"
 };
 
 // Firebase'ni ishga tushirish (compat SDK — oddiy <script> orqali ishlaydi)
