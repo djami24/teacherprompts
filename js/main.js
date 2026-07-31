@@ -2,7 +2,7 @@
 // SAYT SOZLAMALARI — shu yerlarni o'zingizga moslang
 // ============================================================
 const SITE_CONFIG = {
-  telegramUsername: "sizning_telegram_username", // @ belgisisiz kiriting
+  telegramUsername: "@djamiteacher", // @ belgisisiz kiriting
   currency: "so'm"
 };
 
