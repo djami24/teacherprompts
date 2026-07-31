@@ -1,209 +1,499 @@
-<!DOCTYPE html>
-<html lang="uz">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin panel — PromptDaftar</title>
-<meta name="robots" content="noindex, nofollow">
+// ============================================================
+// Yordamchi
+// ============================================================
+const MAX_PROMPTS_PER_FOLDER = 100;
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
-</head>
-<body>
+function showError(elId, msg) {
+  const el = document.getElementById(elId);
+  el.textContent = msg;
+  el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 5000);
+}
 
-<header class="site-header">
-  <div class="container">
-    <a href="index.html" class="brand">
-      <span class="brand-mark">Pd</span>
-      PromptDaftar <span style="font-size:0.7rem; color:var(--amber); margin-left:6px;">ADMIN</span>
-    </a>
-    <nav class="nav-links">
-      <a href="index.html">← Saytga qaytish</a>
-    </nav>
-  </div>
-</header>
+function showSuccess(elId, msg) {
+  const el = document.getElementById(elId);
+  el.textContent = msg;
+  el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 3000);
+}
 
-<!-- LOGIN OYNASI -->
-<div class="auth-wrap" id="authWrap">
-  <div class="auth-card">
-    <h1>Admin kirish</h1>
-    <p class="lead">Papka va promptlarni boshqarish uchun tizimga kiring.</p>
-    <div class="form-error" id="loginError"></div>
-    <form id="loginForm">
-      <div class="field">
-        <label for="loginEmail">Email</label>
-        <input type="email" id="loginEmail" required autocomplete="username">
+function escapeHtmlAdmin(str) {
+  const div = document.createElement("div");
+  div.textContent = str || "";
+  return div.innerHTML;
+}
+
+function normalizeContactAdmin(contact) {
+  return (contact || "").trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "");
+}
+
+// ============================================================
+// AUTENTIFIKATSIYA
+// ============================================================
+const authWrap = document.getElementById("authWrap");
+const adminShell = document.getElementById("adminShell");
+
+auth.onAuthStateChanged((user) => {
+  if (user) {
+    authWrap.style.display = "none";
+    adminShell.classList.add("open");
+    document.getElementById("whoEmail").textContent = user.email;
+    loadAdminFolders();
+    loadPurchaseRequests();
+  } else {
+    authWrap.style.display = "flex";
+    adminShell.classList.remove("open");
+  }
+});
+
+document.getElementById("loginForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+
+  auth.signInWithEmailAndPassword(email, password).catch((err) => {
+    let msg = "Kirishda xatolik yuz berdi.";
+    if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password" || err.code === "auth/user-not-found") {
+      msg = "Email yoki parol noto'g'ri.";
+    }
+    showError("loginError", msg);
+  });
+});
+
+document.getElementById("logoutBtn").addEventListener("click", () => {
+  auth.signOut();
+});
+
+// ============================================================
+// TABLAR (Papkalar / So'rovlar)
+// ============================================================
+document.querySelectorAll(".admin-tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".admin-tab").forEach((t) => t.classList.remove("active"));
+    document.querySelectorAll(".admin-tabpanel").forEach((p) => p.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById(tab.dataset.tab).classList.add("active");
+  });
+});
+
+// ============================================================
+// PAPKALAR (CRUD)
+// ============================================================
+let EDITING_FOLDER_ID = null;
+let ADMIN_FOLDERS = [];
+let OPEN_FOLDER_ID = null; // hozir promptlari boshqarilayotgan papka
+
+function loadAdminFolders() {
+  db.collection("folders")
+    .orderBy("createdAt", "desc")
+    .onSnapshot(
+      (snapshot) => {
+        ADMIN_FOLDERS = [];
+        snapshot.forEach((doc) => ADMIN_FOLDERS.push({ id: doc.id, ...doc.data() }));
+        renderAdminFolderList();
+        populateRequestFolderSelect();
+      },
+      (err) => {
+        document.getElementById("adminFolderList").innerHTML =
+          `<div class="empty-state">Ma'lumotlarni yuklab bo'lmadi: ${escapeHtmlAdmin(err.message)}</div>`;
+      }
+    );
+}
+
+function renderAdminFolderList() {
+  const list = document.getElementById("adminFolderList");
+  document.getElementById("adminFolderCount").textContent = ADMIN_FOLDERS.length + " ta";
+
+  if (ADMIN_FOLDERS.length === 0) {
+    list.innerHTML = `<div class="empty-state">Hozircha papkalar yo'q. Chapdagi formadan qo'shing.</div>`;
+    return;
+  }
+
+  list.innerHTML = ADMIN_FOLDERS.map((f) => `
+    <div class="admin-row">
+      <div class="info">
+        <h3>📁 ${escapeHtmlAdmin(f.name)}</h3>
+        <span class="meta">${f.promptCount || 0}/${MAX_PROMPTS_PER_FOLDER} ta prompt · ${f.price ? Number(f.price).toLocaleString("ru-RU") + " so'm" : "Bepul"}</span>
       </div>
-      <div class="field">
-        <label for="loginPassword">Parol</label>
-        <input type="password" id="loginPassword" required autocomplete="current-password">
-      </div>
-      <button type="submit" class="btn btn-cta btn-block">Kirish</button>
-    </form>
-    <p class="field-hint" style="margin-top:14px;">Admin foydalanuvchi Firebase Authentication bo'limida qo'lda yaratiladi (README'ga qarang).</p>
-  </div>
-</div>
-
-<!-- ADMIN PANEL -->
-<div class="admin-shell" id="adminShell">
-  <div class="admin-topbar">
-    <div class="container">
-      <span class="who">Kirdingiz: <strong id="whoEmail"></strong></span>
-      <button class="btn btn-ghost" id="logoutBtn">Chiqish</button>
+      <button class="icon-btn" data-manage="${f.id}">Promptlar</button>
+      <button class="icon-btn" data-edit="${f.id}">Tahrirlash</button>
+      <button class="icon-btn danger" data-delete="${f.id}">O'chirish</button>
     </div>
-  </div>
+  `).join("");
 
-  <div class="container">
-    <div class="admin-tabs">
-      <button class="admin-tab active" data-tab="tab-folders">📁 Papkalar</button>
-      <button class="admin-tab" data-tab="tab-requests">🔔 So'rovlar</button>
-    </div>
-  </div>
+  list.querySelectorAll("[data-manage]").forEach((btn) => {
+    btn.addEventListener("click", () => openFolderPrompts(btn.dataset.manage));
+  });
+  list.querySelectorAll("[data-edit]").forEach((btn) => {
+    btn.addEventListener("click", () => startEditFolder(btn.dataset.edit));
+  });
+  list.querySelectorAll("[data-delete]").forEach((btn) => {
+    btn.addEventListener("click", () => deleteFolder(btn.dataset.delete));
+  });
+}
 
-  <!-- ==================== PAPKALAR TAB ==================== -->
-  <div class="container admin-tabpanel active" id="tab-folders">
+function startEditFolder(id) {
+  const f = ADMIN_FOLDERS.find((x) => x.id === id);
+  if (!f) return;
+  EDITING_FOLDER_ID = id;
 
-    <div id="folderListSection">
-      <div class="admin-layout">
-        <!-- Chap: papka forma -->
-        <div class="admin-panel">
-          <h2 id="folderFormTitle">Yangi papka qo'shish</h2>
-          <div class="form-error" id="folderFormError"></div>
-          <div class="form-success" id="folderFormSuccess"></div>
-          <form id="folderForm">
-            <div class="field">
-              <label for="fName">Papka nomi</label>
-              <input type="text" id="fName" required placeholder="Masalan: Tarix — 6-sinf to'plami">
-            </div>
-            <div class="field">
-              <label for="fDescription">Qisqa tavsif</label>
-              <input type="text" id="fDescription" placeholder="Bu papkada nima borligi haqida 1 gap">
-            </div>
-            <div class="field">
-              <label for="fPrice">Papka narxi (so'm, bepul bo'lsa 0)</label>
-              <input type="number" id="fPrice" min="0" step="1000" required value="0">
-              <div class="field-hint">Bu — butun papkani (1 tadan tashqari barcha promptlarni) ochish narxi.</div>
-            </div>
-            <button type="submit" class="btn btn-cta btn-block" id="folderSubmitBtn">Qo'shish</button>
-            <button type="button" class="btn btn-ghost btn-block" id="folderCancelEditBtn" style="display:none; margin-top:10px;">Tahrirlashni bekor qilish</button>
-          </form>
-        </div>
+  document.getElementById("folderFormTitle").textContent = "Papkani tahrirlash";
+  document.getElementById("fName").value = f.name || "";
+  document.getElementById("fDescription").value = f.description || "";
+  document.getElementById("fPrice").value = f.price || 0;
+  document.getElementById("folderSubmitBtn").textContent = "Saqlash";
+  document.getElementById("folderCancelEditBtn").style.display = "block";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
 
-        <!-- O'ng: papkalar ro'yxati -->
-        <div class="admin-table-wrap">
-          <div class="admin-table-head">
-            <h2>Barcha papkalar</h2>
-            <span class="admin-count" id="adminFolderCount">0 ta</span>
-          </div>
-          <div id="adminFolderList">
-            <div class="loader">Yuklanmoqda...</div>
-          </div>
-        </div>
+function resetFolderForm() {
+  EDITING_FOLDER_ID = null;
+  document.getElementById("folderForm").reset();
+  document.getElementById("fPrice").value = 0;
+  document.getElementById("folderFormTitle").textContent = "Yangi papka qo'shish";
+  document.getElementById("folderSubmitBtn").textContent = "Qo'shish";
+  document.getElementById("folderCancelEditBtn").style.display = "none";
+}
+
+document.getElementById("folderCancelEditBtn").addEventListener("click", resetFolderForm);
+
+document.getElementById("folderForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+
+  const data = {
+    name: document.getElementById("fName").value.trim(),
+    description: document.getElementById("fDescription").value.trim(),
+    price: Number(document.getElementById("fPrice").value) || 0
+  };
+
+  const submitBtn = document.getElementById("folderSubmitBtn");
+  submitBtn.disabled = true;
+
+  if (EDITING_FOLDER_ID) {
+    db.collection("folders").doc(EDITING_FOLDER_ID).update(data)
+      .then(() => {
+        showSuccess("folderFormSuccess", "Papka yangilandi.");
+        resetFolderForm();
+      })
+      .catch((err) => showError("folderFormError", "Xatolik: " + err.message))
+      .finally(() => (submitBtn.disabled = false));
+  } else {
+    data.promptCount = 0;
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    db.collection("folders").add(data)
+      .then(() => {
+        showSuccess("folderFormSuccess", "Papka qo'shildi.");
+        resetFolderForm();
+      })
+      .catch((err) => showError("folderFormError", "Xatolik: " + err.message))
+      .finally(() => (submitBtn.disabled = false));
+  }
+});
+
+function deleteFolder(id) {
+  if (!confirm("Bu papkani va ichidagi BARCHA promptlarni o'chirmoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi.")) return;
+  db.collection("folders").doc(id).collection("prompts").get()
+    .then((snapshot) => {
+      const batch = db.batch();
+      snapshot.forEach((d) => batch.delete(d.ref));
+      batch.delete(db.collection("folders").doc(id));
+      return batch.commit();
+    })
+    .then(() => {
+      if (OPEN_FOLDER_ID === id) closeFolderPrompts();
+    })
+    .catch((err) => alert("O'chirishda xatolik: " + err.message));
+}
+
+// ============================================================
+// PAPKA ICHIDAGI PROMPTLAR (CRUD, MAX 100)
+// ============================================================
+let EDITING_PROMPT_ID = null;
+let FOLDER_PROMPTS = [];
+let FOLDER_PROMPTS_UNSUB = null;
+
+function openFolderPrompts(folderId) {
+  OPEN_FOLDER_ID = folderId;
+  const f = ADMIN_FOLDERS.find((x) => x.id === folderId);
+  document.getElementById("folderPromptsPanel").style.display = "block";
+  document.getElementById("folderPromptsTitle").textContent = "📁 " + (f ? f.name : "");
+  document.getElementById("folderListSection").style.display = "none";
+  resetPromptForm();
+
+  if (FOLDER_PROMPTS_UNSUB) FOLDER_PROMPTS_UNSUB();
+  FOLDER_PROMPTS_UNSUB = db.collection("folders").doc(folderId).collection("prompts")
+    .orderBy("createdAt", "asc")
+    .onSnapshot(
+      (snapshot) => {
+        FOLDER_PROMPTS = [];
+        snapshot.forEach((d) => FOLDER_PROMPTS.push({ id: d.id, ...d.data() }));
+        renderFolderPromptsList();
+      },
+      (err) => {
+        document.getElementById("folderPromptsList").innerHTML =
+          `<div class="empty-state">Yuklab bo'lmadi: ${escapeHtmlAdmin(err.message)}</div>`;
+      }
+    );
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function closeFolderPrompts() {
+  OPEN_FOLDER_ID = null;
+  if (FOLDER_PROMPTS_UNSUB) FOLDER_PROMPTS_UNSUB();
+  document.getElementById("folderPromptsPanel").style.display = "none";
+  document.getElementById("folderListSection").style.display = "block";
+}
+
+document.getElementById("backToFoldersBtn").addEventListener("click", closeFolderPrompts);
+
+function renderFolderPromptsList() {
+  const list = document.getElementById("folderPromptsList");
+  document.getElementById("folderPromptsCount").textContent = FOLDER_PROMPTS.length + "/" + MAX_PROMPTS_PER_FOLDER;
+
+  const addBtn = document.getElementById("promptSubmitBtn");
+  const limitMsg = document.getElementById("promptLimitMsg");
+  if (!EDITING_PROMPT_ID && FOLDER_PROMPTS.length >= MAX_PROMPTS_PER_FOLDER) {
+    addBtn.disabled = true;
+    limitMsg.style.display = "block";
+  } else {
+    addBtn.disabled = false;
+    limitMsg.style.display = "none";
+  }
+
+  if (FOLDER_PROMPTS.length === 0) {
+    list.innerHTML = `<div class="empty-state">Bu papkada hali prompt yo'q. Chapdagi formadan qo'shing.</div>`;
+    return;
+  }
+
+  list.innerHTML = FOLDER_PROMPTS.map((p) => `
+    <div class="admin-row">
+      <div class="info">
+        <h3>${p.isFree ? "🟢" : "🔒"} ${escapeHtmlAdmin(p.title)}</h3>
+        <span class="meta">${escapeHtmlAdmin(p.category || "—")}${p.grade ? " · " + escapeHtmlAdmin(p.grade) : ""} · ${p.isFree ? "Bepul namuna" : "Pullik (papka narxida)"}</span>
       </div>
+      <button class="icon-btn" data-edit="${p.id}">Tahrirlash</button>
+      <button class="icon-btn danger" data-delete="${p.id}">O'chirish</button>
     </div>
+  `).join("");
 
-    <!-- PAPKA ICHIDAGI PROMPTLAR PANELI -->
-    <div id="folderPromptsPanel" style="display:none;">
-      <button class="btn btn-ghost" id="backToFoldersBtn" style="margin-bottom:16px;">← Papkalarga qaytish</button>
-      <h2 id="folderPromptsTitle" style="margin-bottom:20px;"></h2>
+  list.querySelectorAll("[data-edit]").forEach((btn) => {
+    btn.addEventListener("click", () => startEditPrompt(btn.dataset.edit));
+  });
+  list.querySelectorAll("[data-delete]").forEach((btn) => {
+    btn.addEventListener("click", () => deletePrompt(btn.dataset.delete));
+  });
+}
 
-      <div class="admin-layout">
-        <div class="admin-panel">
-          <h2 id="promptFormTitle">Yangi prompt qo'shish</h2>
-          <div class="form-error" id="promptFormError"></div>
-          <div class="form-success" id="promptFormSuccess"></div>
-          <div class="field-hint" id="promptLimitMsg" style="display:none; color:var(--danger); margin-bottom:12px;">Bu papkada limit (100 ta) to'lgan. Yangi qo'shish uchun avval birortasini o'chiring.</div>
-          <form id="promptForm">
-            <div class="field">
-              <label for="pTitle">Sarlavha</label>
-              <input type="text" id="pTitle" required placeholder="Masalan: Amir Temur davri — dars ishlanmasi">
-            </div>
-            <div class="field">
-              <label for="pCategory">Kategoriya (fan)</label>
-              <input type="text" id="pCategory" placeholder="Masalan: Tarix">
-            </div>
-            <div class="field">
-              <label for="pGrade">Sinf (ixtiyoriy)</label>
-              <input type="text" id="pGrade" placeholder="Masalan: 6-sinf">
-            </div>
-            <div class="field">
-              <label for="pDescription">Qisqa tavsif</label>
-              <input type="text" id="pDescription" placeholder="1 gapda: bu prompt nima uchun kerak">
-            </div>
-            <div class="field">
-              <label class="checkbox-label"><input type="checkbox" id="pIsFree"> Bu prompt — papkadagi BEPUL namuna</label>
-              <div class="field-hint">Odatda faqat bitta promptni bepul qiling — qolganlari papka sotib olingach ochiladi.</div>
-            </div>
-            <div class="field">
-              <label for="pPromptText">To'liq prompt matni</label>
-              <textarea id="pPromptText" required placeholder="AI'ga yuboriladigan to'liq prompt matnini shu yerga yozing..."></textarea>
-            </div>
-            <div class="field">
-              <label for="pPromptTextUz">Promptning o'zbekcha tarjimasi (ixtiyoriy)</label>
-              <textarea id="pPromptTextUz" placeholder="Xohlasangiz, yuqoridagi promptning o'zbekcha tarjimasini shu yerga yozing..."></textarea>
-              <div class="field-hint">Bu maydon shart emas — to'ldirmasangiz ham bo'ladi. To'ldirilsa, o'qituvchiga prompt matni ostida ko'rsatiladi.</div>
-            </div>
-            <button type="submit" class="btn btn-cta btn-block" id="promptSubmitBtn">Qo'shish</button>
-            <button type="button" class="btn btn-ghost btn-block" id="promptCancelEditBtn" style="display:none; margin-top:10px;">Tahrirlashni bekor qilish</button>
-          </form>
-        </div>
+function startEditPrompt(id) {
+  const p = FOLDER_PROMPTS.find((x) => x.id === id);
+  if (!p) return;
+  EDITING_PROMPT_ID = id;
 
-        <div class="admin-table-wrap">
-          <div class="admin-table-head">
-            <h2>Papkadagi promptlar</h2>
-            <span class="admin-count" id="folderPromptsCount">0/100</span>
-          </div>
-          <div id="folderPromptsList">
-            <div class="loader">Yuklanmoqda...</div>
-          </div>
-        </div>
+  document.getElementById("promptFormTitle").textContent = "Promptni tahrirlash";
+  document.getElementById("pTitle").value = p.title || "";
+  document.getElementById("pCategory").value = p.category || "";
+  document.getElementById("pGrade").value = p.grade || "";
+  document.getElementById("pDescription").value = p.description || "";
+  document.getElementById("pIsFree").checked = !!p.isFree;
+  document.getElementById("pPromptText").value = p.promptText || "";
+  document.getElementById("pPromptTextUz").value = p.promptTextUz || "";
+  document.getElementById("promptSubmitBtn").textContent = "Saqlash";
+  document.getElementById("promptCancelEditBtn").style.display = "block";
+  renderFolderPromptsList();
+}
+
+function resetPromptForm() {
+  EDITING_PROMPT_ID = null;
+  document.getElementById("promptForm").reset();
+  document.getElementById("promptFormTitle").textContent = "Yangi prompt qo'shish";
+  document.getElementById("promptSubmitBtn").textContent = "Qo'shish";
+  document.getElementById("promptCancelEditBtn").style.display = "none";
+}
+
+document.getElementById("promptCancelEditBtn").addEventListener("click", resetPromptForm);
+
+document.getElementById("promptForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (!OPEN_FOLDER_ID) return;
+
+  const data = {
+    title: document.getElementById("pTitle").value.trim(),
+    category: document.getElementById("pCategory").value.trim(),
+    grade: document.getElementById("pGrade").value.trim(),
+    description: document.getElementById("pDescription").value.trim(),
+    isFree: document.getElementById("pIsFree").checked,
+    promptText: document.getElementById("pPromptText").value,
+    promptTextUz: document.getElementById("pPromptTextUz").value.trim()
+  };
+
+  const submitBtn = document.getElementById("promptSubmitBtn");
+  submitBtn.disabled = true;
+
+  const folderRef = db.collection("folders").doc(OPEN_FOLDER_ID);
+  const promptsRef = folderRef.collection("prompts");
+
+  if (EDITING_PROMPT_ID) {
+    promptsRef.doc(EDITING_PROMPT_ID).update(data)
+      .then(() => {
+        showSuccess("promptFormSuccess", "Prompt yangilandi.");
+        resetPromptForm();
+      })
+      .catch((err) => showError("promptFormError", "Xatolik: " + err.message))
+      .finally(() => (submitBtn.disabled = false));
+  } else {
+    if (FOLDER_PROMPTS.length >= MAX_PROMPTS_PER_FOLDER) {
+      showError("promptFormError", "Bu papkada eng ko'p " + MAX_PROMPTS_PER_FOLDER + " ta prompt bo'lishi mumkin.");
+      submitBtn.disabled = false;
+      return;
+    }
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    promptsRef.add(data)
+      .then(() => {
+        return folderRef.update({ promptCount: firebase.firestore.FieldValue.increment(1) });
+      })
+      .then(() => {
+        showSuccess("promptFormSuccess", "Prompt qo'shildi.");
+        resetPromptForm();
+      })
+      .catch((err) => showError("promptFormError", "Xatolik: " + err.message))
+      .finally(() => (submitBtn.disabled = false));
+  }
+});
+
+function deletePrompt(id) {
+  if (!confirm("Bu promptni o'chirmoqchimisiz?")) return;
+  const folderRef = db.collection("folders").doc(OPEN_FOLDER_ID);
+  folderRef.collection("prompts").doc(id).delete()
+    .then(() => folderRef.update({ promptCount: firebase.firestore.FieldValue.increment(-1) }))
+    .catch((err) => alert("O'chirishda xatolik: " + err.message));
+}
+
+// ============================================================
+// SO'ROVLAR (purchaseRequests) — tasdiqlash / rad etish
+// ============================================================
+let ALL_REQUESTS = [];
+
+function loadPurchaseRequests() {
+  db.collection("purchaseRequests")
+    .orderBy("createdAt", "desc")
+    .onSnapshot(
+      (snapshot) => {
+        ALL_REQUESTS = [];
+        snapshot.forEach((doc) => ALL_REQUESTS.push({ id: doc.id, ...doc.data() }));
+        renderRequests();
+      },
+      (err) => {
+        document.getElementById("requestsList").innerHTML =
+          `<div class="empty-state">Yuklab bo'lmadi: ${escapeHtmlAdmin(err.message)}</div>`;
+      }
+    );
+}
+
+function renderRequests() {
+  const list = document.getElementById("requestsList");
+  const pending = ALL_REQUESTS.filter((r) => r.status === "pending");
+  const resolved = ALL_REQUESTS.filter((r) => r.status !== "pending").slice(0, 30);
+
+  document.getElementById("pendingCount").textContent = pending.length + " ta kutilmoqda";
+
+  const renderRow = (r) => `
+    <div class="admin-row request-row">
+      <div class="info">
+        <h3>📁 ${escapeHtmlAdmin(r.folderName)} <span class="req-status req-${r.status}">${
+          r.status === "pending" ? "Kutilmoqda" : r.status === "approved" ? "Tasdiqlangan ✓" : "Rad etilgan ✕"
+        }</span></h3>
+        <span class="meta">${escapeHtmlAdmin(r.teacherName)} · ${escapeHtmlAdmin(r.teacherContact)} · ${r.folderPrice ? Number(r.folderPrice).toLocaleString("ru-RU") + " so'm" : "Bepul"}</span>
       </div>
+      ${
+        r.status === "pending"
+          ? `<button class="icon-btn" data-approve="${r.id}">✓ Tasdiqlash</button>
+             <button class="icon-btn danger" data-reject="${r.id}">✕ Rad etish</button>`
+          : ``
+      }
     </div>
-  </div>
+  `;
 
-  <!-- ==================== SO'ROVLAR TAB ==================== -->
-  <div class="container admin-tabpanel" id="tab-requests">
-    <div class="admin-layout">
-      <div class="admin-panel">
-        <h2>Qo'lda ruxsat berish</h2>
-        <p class="field-hint" style="margin-bottom:16px;">So'rovsiz ham (masalan telefon orqali kelishilgan xaridor uchun) papkani to'g'ridan-to'g'ri ochib berish.</p>
-        <div class="form-success" id="manualGrantSuccess"></div>
-        <form id="manualGrantForm">
-          <div class="field">
-            <label for="manualFolderSelect">Papka</label>
-            <select id="manualFolderSelect" required></select>
-          </div>
-          <div class="field">
-            <label for="manualName">O'qituvchi ismi</label>
-            <input type="text" id="manualName" required>
-          </div>
-          <div class="field">
-            <label for="manualContact">Telegram username / telefon</label>
-            <input type="text" id="manualContact" required placeholder="@username yoki +998...">
-          </div>
-          <button type="submit" class="btn btn-cta btn-block">Ruxsat berish</button>
-        </form>
-      </div>
+  let html = "";
+  if (pending.length === 0 && resolved.length === 0) {
+    html = `<div class="empty-state">Hozircha so'rovlar yo'q.</div>`;
+  } else {
+    if (pending.length > 0) html += pending.map(renderRow).join("");
+    if (resolved.length > 0) {
+      html += `<div class="admin-table-head" style="margin-top:24px;"><h2 style="font-size:0.95rem;">Oldingi so'rovlar</h2></div>`;
+      html += resolved.map(renderRow).join("");
+    }
+  }
+  list.innerHTML = html;
 
-      <div class="admin-table-wrap">
-        <div class="admin-table-head">
-          <h2>Xarid so'rovlari</h2>
-          <span class="admin-count" id="pendingCount">0 ta kutilmoqda</span>
-        </div>
-        <div id="requestsList">
-          <div class="loader">Yuklanmoqda...</div>
-        </div>
-      </div>
-    </div>
-  </div>
+  list.querySelectorAll("[data-approve]").forEach((btn) => {
+    btn.addEventListener("click", () => approveRequest(btn.dataset.approve));
+  });
+  list.querySelectorAll("[data-reject]").forEach((btn) => {
+    btn.addEventListener("click", () => rejectRequest(btn.dataset.reject));
+  });
+}
 
-</div>
+function approveRequest(id) {
+  const r = ALL_REQUESTS.find((x) => x.id === id);
+  if (!r) return;
+  if (!confirm(`"${r.folderName}" papkasini ${r.teacherName} (${r.teacherContact}) uchun ochmoqchimisiz?`)) return;
 
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
-<script src="js/firebase-config.js"></script>
-<script src="js/admin.js"></script>
-</body>
-</html>
+  const purchaseId = r.folderId + "__" + normalizeContactAdmin(r.teacherContact);
+  const batch = db.batch();
+  batch.set(db.collection("purchases").doc(purchaseId), {
+    folderId: r.folderId,
+    folderName: r.folderName,
+    contact: r.teacherContact,
+    teacherName: r.teacherName,
+    requestId: r.id,
+    approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  batch.update(db.collection("purchaseRequests").doc(id), {
+    status: "approved",
+    resolvedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  batch.commit().catch((err) => alert("Xatolik: " + err.message));
+}
+
+function rejectRequest(id) {
+  if (!confirm("Bu so'rovni rad etmoqchimisiz?")) return;
+  db.collection("purchaseRequests").doc(id).update({
+    status: "rejected",
+    resolvedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch((err) => alert("Xatolik: " + err.message));
+}
+
+// ============================================================
+// QO'LDA RUXSAT BERISH (so'rovsiz ham papka ochib berish)
+// ============================================================
+function populateRequestFolderSelect() {
+  const sel = document.getElementById("manualFolderSelect");
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = ADMIN_FOLDERS.map((f) => `<option value="${f.id}">${escapeHtmlAdmin(f.name)}</option>`).join("");
+  if (current) sel.value = current;
+}
+
+document.getElementById("manualGrantForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const folderId = document.getElementById("manualFolderSelect").value;
+  const name = document.getElementById("manualName").value.trim();
+  const contact = document.getElementById("manualContact").value.trim();
+  if (!folderId || !name || !contact) return;
+
+  const f = ADMIN_FOLDERS.find((x) => x.id === folderId);
+  const purchaseId = folderId + "__" + normalizeContactAdmin(contact);
+
+  db.collection("purchases").doc(purchaseId).set({
+    folderId,
+    folderName: f ? f.name : "",
+    contact,
+    teacherName: name,
+    approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    showSuccess("manualGrantSuccess", "Ruxsat berildi.");
+    document.getElementById("manualGrantForm").reset();
+  }).catch((err) => alert("Xatolik: " + err.message));
+});
