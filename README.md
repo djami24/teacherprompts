@@ -1,160 +1,155 @@
 # PromptDaftar — O'qituvchilar uchun AI promptlari sayti
 
-Oddiy, statik (HTML/CSS/JS) sayt. Ma'lumotlar Firebase (Firestore + Authentication) orqali saqlanadi va boshqariladi. GitHub Pages'da bepul joylashtirish mumkin.
+Oddiy, statik (HTML/CSS/JS) sayt. Ma'lumotlar Firebase (Firestore + Authentication) orqali saqlanadi. GitHub Pages'da bepul joylashtiriladi.
+
+## Yangi tuzilma: PAPKALAR
+
+Endi promptlar **papkalarga** guruhlangan:
+
+- Admin xohlagancha **papka** ocha oladi (masalan: "Tarix — 6-sinf", "Ona tili testlari" va h.k.).
+- Har bir papkaga **eng ko'pi bilan 100 ta** prompt qo'shish mumkin.
+- Har bir papkada **bitta prompt bepul** namuna sifatida ko'rsatiladi (admin belgilaydi), qolganlari — **papka narxida** birgalikda sotib olinadi.
+- O'qituvchi papkani "Sotib olish"ni bosganda: ismi va Telegram/tel raqamini kiritadi → so'rov Firestore'ga yoziladi **va sizga (adminga) Telegram orqali avtomatik xabar keladi** (qaysi papka, kim so'raganini ko'rasiz).
+- O'qituvchi to'lov qilib, skrinshotni Telegram'da sizga yuboradi.
+- Siz screenshot'ni tekshirib, **admin panelda "Tasdiqlash"** tugmasini bosasiz → shu papka **avtomatik ravishda** o'sha o'qituvchiga ochiladi (sahifani qayta yuklamasdan ham — real vaqtda).
 
 ## Sayt tuzilishi
 
 ```
-oquv-promptlar/
-├── index.html          → Bosh sahifa
-├── oqituvchi.html       → O'qituvchilar uchun to'liq katalog
-├── admin.html            → Admin panel (login + boshqaruv)
-├── css/style.css         → Barcha uslublar
-├── js/firebase-config.js → Firebase sozlamalari (o'zingiz to'ldirasiz)
-├── js/main.js             → Katalog/qidiruv/modal logikasi
+teacherprompts/
+├── index.html            → Bosh sahifa (papkalar namunasi)
+├── oqituvchi.html         → Barcha papkalar katalogi
+├── papka.html             → Bitta papka sahifasi (promptlar + sotib olish)
+├── admin.html             → Admin panel (login + papkalar + so'rovlar)
+├── css/style.css          → Barcha uslublar
+├── js/firebase-config.js  → Firebase sozlamalari
+├── js/telegram-config.js  → Telegram bot sozlamalari (bildirishnoma uchun)
+├── js/main.js             → Katalog/papka/sotib olish logikasi
 └── js/admin.js            → Admin panel logikasi
 ```
 
 ---
 
-## 1-QADAM: Firebase loyihasini yaratish
+## 1-QADAM: Firebase (agar hali sozlanmagan bo'lsa)
 
-1. https://console.firebase.google.com ga kiring, Google hisobingiz bilan.
-2. **"Add project" / "Loyiha qo'shish"** tugmasini bosing, nom bering (masalan `promptdaftar`).
-3. Google Analytics'ni o'chirib qo'yishingiz mumkin (kerak emas).
-4. Loyiha yaratilgach, chap menyudan **Build → Firestore Database** ga kiring:
-   - **"Create database"** ni bosing.
-   - Rejim: **"Start in production mode"** ni tanlang (keyin qoidalarni o'zimiz yozamiz).
-   - Joylashuv (location): eng yaqinini tanlang (masalan `eur3` yoki `asia-south1`).
-5. Chap menyudan **Build → Authentication** ga kiring:
-   - **"Get started"**.
-   - **Sign-in method** bo'limidan **Email/Password** ni yoqing (Enable).
+`js/firebase-config.js` faylida loyihangiz sozlamalari allaqachon kiritilgan. Agar boshqa Firebase loyihasidan foydalanmoqchi bo'lsangiz, avvalgi yo'riqnoma bo'yicha davom eting: https://console.firebase.google.com — Firestore Database va Authentication (Email/Password) yoqilgan bo'lishi kerak.
 
-## 2-QADAM: Admin foydalanuvchi yaratish
+### Firestore xavfsizlik qoidalari
 
-1. Authentication bo'limida **Users** tabiga o'ting.
-2. **"Add user"** tugmasini bosing.
-3. O'zingizning email va parolingizni kiriting — shu orqali `admin.html` sahifasiga kirasiz.
-4. Xohlasangiz bir nechta admin (masalan, boshqa hamkasbingiz uchun) qo'shishingiz mumkin.
+Firestore Database → **Rules** bo'limiga o'ting va **`FIRESTORE_RULES.txt`** faylidagi qoidalarni joylashtiring (bu yangi papka tuzilmasi uchun yangilangan qoidalar — eskisini albatta shu bilan almashtiring). **"Publish"** tugmasini bosing.
 
-> ⚠️ Bu sayt registratsiya (sign-up) formasiga ega emas — admin foydalanuvchilar faqat Firebase Console orqali qo'lda yaratiladi. Bu — begona odamlar admin panelga o'zi ro'yxatdan o'tib kirib olmasligi uchun ataylab shunday qilingan.
+---
 
-## 3-QADAM: Web-ilova qo'shish va konfiguratsiyani olish
+## 2-QADAM: Telegram bot sozlash (yangi — muhim!)
 
-1. Firebase Console'da loyiha sozlamalariga o'ting: chap tepadagi ⚙️ belgisi → **Project settings**.
-2. Pastga tushing, **"Your apps"** bo'limida `</>` (Web) belgisini bosing.
-3. Ilova nomini kiriting (masalan `promptdaftar-web`), **"Register app"**.
-4. Sizga `firebaseConfig` obyekti ko'rsatiladi — shunga o'xshash:
+Papka tanlanganda sizga avtomatik xabar kelishi uchun kichik Telegram bot kerak:
+
+1. Telegram'da **@BotFather** ga yozing → `/newbot` → botga nom bering.
+   Sizga **BOT TOKEN** beriladi (masalan `123456789:ABCdefGhIJKlmNoPQRstuVwxYZ`).
+2. O'zingizning **chat_id**ingizni bilish uchun:
+   - Yaratgan botingizga Telegram'da `/start` deb yozing (botni ishga tushirish uchun).
+   - Brauzerda quyidagi manzilni oching (TOKEN o'rniga o'zingiznikini qo'ying):
+     `https://api.telegram.org/bot<TOKEN>/getUpdates`
+   - Javobda `"chat":{"id": 123456789, ...}` qismidan raqamni oling — bu sizning `chat_id`ingiz.
+3. **`js/telegram-config.js`** faylini oching va to'ldiring:
 
 ```js
-const firebaseConfig = {
-  apiKey: "AIzaSy...",
-  authDomain: "promptdaftar.firebaseapp.com",
-  projectId: "promptdaftar",
-  storageBucket: "promptdaftar.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef"
+const TELEGRAM_CONFIG = {
+  botToken: "123456789:ABCdefGhIJKlmNoPQRstuVwxYZ",
+  adminChatId: "123456789",
+  adminUsername: "sizning_telegram_username"  // @ belgisisiz — skrinshot yuborish uchun
 };
 ```
 
-5. Shu qiymatlarni nusxalab, loyihadagi **`js/firebase-config.js`** faylidagi mos joylariga joylashtiring (`BU_YERGA_...` yozuvlarini almashtiring).
+> ⚠️ **Xavfsizlik eslatmasi:** Bu bot tokeni sayt kodida (client-side) ko'rinadi, ya'ni har qanday kishi saytning manba kodini ochib uni ko'rishi mumkin. Shuning uchun bu bot faqat shu bitta vazifa (bildirishnoma yuborish) uchun bo'lsin — boshqa muhim ma'lumotlar/guruhlar uchun ishlatmang. Xohlasangiz, buni xavfsizroq qilish (masalan Cloudflare Worker orqali tokenni yashirish) bo'yicha keyinroq yordam bera olaman.
 
-> Bu kalitlar "maxfiy" emas — Firebase'da bu oddiy client-side identifikatorlar. Haqiqiy xavfsizlik quyidagi Firestore qoidalari orqali ta'minlanadi.
+---
 
-## 4-QADAM: Firestore xavfsizlik qoidalarini sozlash
+## 3-QADAM: Admin foydalanuvchi yaratish
 
-Firestore Database → **Rules** tabiga o'ting va quyidagini joylashtiring:
+Authentication → Users → "Add user" — email va parol kiriting. Shu orqali `admin.html`ga kirasiz.
 
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /prompts/{promptId} {
-      // Har kim promptlarni o'qiy oladi (sayt tashrif buyuruvchilari uchun)
-      allow read: if true;
-      // Faqat tizimga kirgan (admin) foydalanuvchi qo'sha/tahrirlay/o'chira oladi
-      allow write: if request.auth != null;
-    }
-  }
-}
-```
+---
 
-**"Publish"** tugmasini bosing.
+## 4-QADAM: Ishlatish
 
-Bu qoida: har kim saytdagi promptlarni ko'ra oladi, lekin faqat Authentication orqali tizimga kirgan admin ularni qo'shishi, tahrirlashi yoki o'chirishi mumkin.
+### Admin sifatida:
+1. `admin.html` sahifasiga kirib, tizimga kiring.
+2. **"📁 Papkalar"** bo'limidan yangi papka yarating (nomi, tavsifi, narxi).
+3. Papka yonidagi **"Promptlar"** tugmasini bosib, ichiga (eng ko'pi 100 ta) prompt qo'shing. Bittasini **"Bepul namuna"** deb belgilang.
+4. O'qituvchi sotib olishni so'raganda, sizga Telegramda xabar keladi va **"🔔 So'rovlar"** bo'limida ham ko'rinadi.
+5. Skrinshot va to'lovni tekshirgach, so'rov yonidagi **"✓ Tasdiqlash"**ni bosing — papka o'sha o'qituvchiga ochiladi.
+6. Agar so'rovsiz to'g'ridan-to'g'ri ruxsat bermoqchi bo'lsangiz — **"So'rovlar"** bo'limidagi **"Qo'lda ruxsat berish"** formasidan foydalaning.
 
-## 5-QADAM: Telegram va narx sozlamalarini kiritish
+### O'qituvchi sifatida:
+1. `oqituvchi.html` — barcha papkalarni ko'radi.
+2. Papkani ochib, bepul namunani sinab ko'radi.
+3. "Papkani sotib olish" tugmasini bosib, ism va Telegram/tel raqamini kiritadi.
+4. Ko'rsatilgan Telegram havolasi orqali to'lov skrinshotini yuboradi.
+5. Admin tasdiqlagach — sahifa **avtomatik** yangilanadi va barcha promptlar ochiladi (qayta kirish shart emas, lekin xohlasa keyinroq ham kirib ko'rishi mumkin — kompyuter/telefon xotirasida uning kontaktiga bog'liq holda saqlanadi).
 
-`js/main.js` faylining eng boshida:
+---
 
-```js
-const SITE_CONFIG = {
-  telegramUsername: "sizning_telegram_username", // @ belgisisiz
-  currency: "so'm"
-};
-```
-
-`telegramUsername`'ni o'zingizning Telegram foydalanuvchi nomingizga almashtiring — pullik promptlar uchun "Sotib olish" tugmasi shu Telegram'ga olib boradi.
-
-> **Eslatma — to'lov haqida:** Hozirgi versiyada haqiqiy onlayn to'lov tizimi (Payme/Click) ulanmagan — bu MVP (birinchi versiya) uchun eng sodda va tez ishga tushuriladigan yechim: xaridor Telegram orqali murojaat qiladi, siz to'lovni tekshirib, to'liq prompt matnini qo'lda yuborasiz. Keyinchalik xohlasangiz, Payme/Click integratsiyasini qo'shib berishim mumkin.
-
-## 6-QADAM: Lokal tekshirish
-
-Fayllarni brauzerda to'g'ridan-to'g'ri ochish (`file://`) ba'zi brauzerlarda Firebase bilan ishlamasligi mumkin. Shuning uchun lokal server orqali oching:
+## 5-QADAM: Lokal tekshirish
 
 ```bash
-cd oquv-promptlar
+cd teacherprompts
 python3 -m http.server 8000
 ```
 
-Keyin brauzerda: `http://localhost:8000`
+Brauzerda: `http://localhost:8000`
 
-## 7-QADAM: GitHub'ga yuklash
+## 6-QADAM: GitHub'ga yuklash va Pages orqali joylashtirish
 
 ```bash
-cd oquv-promptlar
+cd teacherprompts
 git init
 git add .
-git commit -m "Birinchi versiya: PromptDaftar sayti"
+git commit -m "Papkalar tizimi qo'shildi"
 git branch -M main
 git remote add origin https://github.com/FOYDALANUVCHI_NOMI/REPO_NOMI.git
 git push -u origin main
 ```
 
-(`FOYDALANUVCHI_NOMI` va `REPO_NOMI`ni GitHub'da avval yaratgan repo manzilingizga almashtiring.)
-
-## 8-QADAM: GitHub Pages orqali bepul joylashtirish
-
-1. GitHub'dagi repo sahifasiga kiring.
-2. **Settings → Pages** bo'limiga o'ting.
-3. **Source**: "Deploy from a branch" → Branch: `main`, papka: `/ (root)` → **Save**.
-4. Bir necha daqiqadan so'ng sayt manzili tayyor bo'ladi:
-   `https://FOYDALANUVCHI_NOMI.github.io/REPO_NOMI/`
-
-Admin panelga kirish uchun: `https://.../admin.html`
+Keyin: **Settings → Pages → Source: Deploy from a branch → main / (root)**.
 
 ---
 
 ## Ma'lumotlar tuzilishi (Firestore)
 
-`prompts` kolleksiyasidagi har bir hujjat:
+**`folders`** kolleksiyasi:
 
-| Maydon        | Tur      | Izoh                                  |
-|---------------|----------|----------------------------------------|
-| `title`       | string   | Prompt sarlavhasi                     |
-| `category`    | string   | Fan/kategoriya (masalan "Tarix")      |
-| `grade`       | string   | Sinf (ixtiyoriy, masalan "6-sinf")    |
-| `description` | string   | Qisqa tavsif                          |
-| `price`       | number   | Narx, so'mda (0 = bepul)              |
-| `promptText`  | string   | To'liq prompt matni                   |
-| `createdAt`   | timestamp| Avtomatik qo'shiladi                  |
+| Maydon        | Tur      | Izoh                                       |
+|---------------|----------|---------------------------------------------|
+| `name`        | string   | Papka nomi                                  |
+| `description` | string   | Qisqa tavsif                                |
+| `price`       | number   | Butun papkani ochish narxi                  |
+| `promptCount` | number   | Ichidagi promptlar soni (avtomatik)         |
+| `createdAt`   | timestamp| Avtomatik                                   |
 
-Bu maydonlarni admin panel orqali qo'shish/o'zgartirish mumkin — Firestore Console'ga qo'lda kirish shart emas.
+**`folders/{folderId}/prompts`** subkolleksiyasi (har bir papkada max 100 ta):
+
+| Maydon        | Tur      | Izoh                                         |
+|---------------|----------|-----------------------------------------------|
+| `title`       | string   | Prompt sarlavhasi                            |
+| `category`    | string   | Fan (ixtiyoriy)                              |
+| `grade`       | string   | Sinf (ixtiyoriy)                             |
+| `description` | string   | Qisqa tavsif                                 |
+| `isFree`      | boolean  | true bo'lsa — bepul namuna                   |
+| `promptText`  | string   | To'liq prompt matni                          |
+| `createdAt`   | timestamp| Avtomatik                                    |
+
+**`purchaseRequests`** kolleksiyasi — o'qituvchi yuborgan so'rovlar (`status`: pending/approved/rejected).
+
+**`purchases`** kolleksiyasi — tasdiqlangan xaridlar. Hujjat ID: `{folderId}__{normallashtirilgan_kontakt}`. Bu orqali frontend "papka ochilganmi" tekshiradi.
+
+## Muhim chegara (limitation)
+
+Bu — sof frontend (backend serversiz) yechim. Amalda `promptText` maydoni Firestore'dan tarmoq orqali kelganda texnik jihatdan to'liq keladi (frontend uni faqat vizual qisqartiradi). Ya'ni juda "texnik" foydalanuvchi brauzer Dev Tools orqali pullik matnni ko'rish imkoniga ega bo'lishi mumkin. Aksariyat oddiy foydalanuvchilar uchun bu muammo emas, lekin 100% himoya kerak bo'lsa, promptlarni faqat tasdiqlangandan keyin qaytaradigan Cloud Function/backend qo'shish kerak bo'ladi — buni ham xohlasangiz keyinroq qo'shib beraman.
 
 ## Keyingi qadamlar (xohlasangiz qo'shib beraman)
 
 - 💳 Payme/Click orqali avtomatik to'lov
-- 📧 Xarid qilingandan so'ng email/Telegram bot orqali avtomatik yuborish
-- 🖼️ Har bir prompt uchun rasm/banner
-- 🔍 Ko'proq filtr (narx bo'yicha saralash, mashhurlik)
-- 📊 Admin panelda statistik ma'lumotlar (ko'rishlar, sotuvlar)
+- 🔒 Backend (Cloud Function) orqali pullik matnni to'liq yashirish
+- 📊 Admin panelda statistika (ko'rishlar, sotuvlar, daromad)
+- 🖼️ Papka uchun banner/rasm

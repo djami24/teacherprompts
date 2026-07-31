@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Papkalar — har kim o'qiy oladi, faqat admin (tizimga kirgan) yoza oladi
+    match /folders/{folderId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+
+      // Papka ichidagi promptlar — har kim o'qiy oladi (matnni frontend
+      // "qulflangan" holatda qisqartirib ko'rsatadi), faqat admin yozadi.
+      // ESLATMA: bu promptText maydoni texnik jihatdan tarmoq so'rovida
+      // to'liq keladi — bu oddiy statik sayt arxitekturasining chegarasi
+      // (backend bo'lmagani uchun). Juda qimmatli/maxfiy promptlar uchun
+      // kelajakda Cloud Function orqali himoyalash tavsiya etiladi.
+      match /prompts/{promptId} {
+        allow read: if true;
+        allow write: if request.auth != null;
+      }
+    }
+
+    // Xarid so'rovlari — har kim yangi so'rov yarata oladi (o'qituvchi
+    // "Sotib olish"ni bosganda), lekin faqat admin o'qiy/o'zgartira/o'chira oladi
+    match /purchaseRequests/{requestId} {
+      allow create: if true;
+      allow read, update, delete: if request.auth != null;
+    }
+
+    // Ochilgan papkalar (xaridlar) — har kim o'qiy oladi (frontend shu orqali
+      // "papka ochildimi" tekshiradi), faqat admin yoza oladi (tasdiqlash/qo'lda ruxsat)
+    match /purchases/{purchaseId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}

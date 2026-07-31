@@ -28,7 +28,7 @@
 <div class="auth-wrap" id="authWrap">
   <div class="auth-card">
     <h1>Admin kirish</h1>
-    <p class="lead">Promptlarni boshqarish uchun tizimga kiring.</p>
+    <p class="lead">Papka va promptlarni boshqarish uchun tizimga kiring.</p>
     <div class="form-error" id="loginError"></div>
     <form id="loginForm">
       <div class="field">
@@ -54,55 +54,145 @@
     </div>
   </div>
 
-  <div class="container admin-layout">
-    <!-- Chap: forma -->
-    <div class="admin-panel">
-      <h2 id="formTitle">Yangi prompt qo'shish</h2>
-      <div class="form-error" id="formError"></div>
-      <div class="form-success" id="formSuccess"></div>
-      <form id="promptForm">
-        <input type="hidden" id="promptId">
-        <div class="field">
-          <label for="pTitle">Sarlavha</label>
-          <input type="text" id="pTitle" required placeholder="Masalan: Amir Temur davri — dars ishlanmasi">
+  <div class="container">
+    <div class="admin-tabs">
+      <button class="admin-tab active" data-tab="tab-folders">📁 Papkalar</button>
+      <button class="admin-tab" data-tab="tab-requests">🔔 So'rovlar</button>
+    </div>
+  </div>
+
+  <!-- ==================== PAPKALAR TAB ==================== -->
+  <div class="container admin-tabpanel active" id="tab-folders">
+
+    <div id="folderListSection">
+      <div class="admin-layout">
+        <!-- Chap: papka forma -->
+        <div class="admin-panel">
+          <h2 id="folderFormTitle">Yangi papka qo'shish</h2>
+          <div class="form-error" id="folderFormError"></div>
+          <div class="form-success" id="folderFormSuccess"></div>
+          <form id="folderForm">
+            <div class="field">
+              <label for="fName">Papka nomi</label>
+              <input type="text" id="fName" required placeholder="Masalan: Tarix — 6-sinf to'plami">
+            </div>
+            <div class="field">
+              <label for="fDescription">Qisqa tavsif</label>
+              <input type="text" id="fDescription" placeholder="Bu papkada nima borligi haqida 1 gap">
+            </div>
+            <div class="field">
+              <label for="fPrice">Papka narxi (so'm, bepul bo'lsa 0)</label>
+              <input type="number" id="fPrice" min="0" step="1000" required value="0">
+              <div class="field-hint">Bu — butun papkani (1 tadan tashqari barcha promptlarni) ochish narxi.</div>
+            </div>
+            <button type="submit" class="btn btn-cta btn-block" id="folderSubmitBtn">Qo'shish</button>
+            <button type="button" class="btn btn-ghost btn-block" id="folderCancelEditBtn" style="display:none; margin-top:10px;">Tahrirlashni bekor qilish</button>
+          </form>
         </div>
-        <div class="field">
-          <label for="pCategory">Kategoriya (fan)</label>
-          <input type="text" id="pCategory" required placeholder="Masalan: Tarix">
+
+        <!-- O'ng: papkalar ro'yxati -->
+        <div class="admin-table-wrap">
+          <div class="admin-table-head">
+            <h2>Barcha papkalar</h2>
+            <span class="admin-count" id="adminFolderCount">0 ta</span>
+          </div>
+          <div id="adminFolderList">
+            <div class="loader">Yuklanmoqda...</div>
+          </div>
         </div>
-        <div class="field">
-          <label for="pGrade">Sinf (ixtiyoriy)</label>
-          <input type="text" id="pGrade" placeholder="Masalan: 6-sinf">
-        </div>
-        <div class="field">
-          <label for="pDescription">Qisqa tavsif</label>
-          <input type="text" id="pDescription" required placeholder="1 gapda: bu prompt nima uchun kerak">
-        </div>
-        <div class="field">
-          <label for="pPrice">Narx (so'm, bepul bo'lsa 0)</label>
-          <input type="number" id="pPrice" min="0" step="1000" required value="0">
-        </div>
-        <div class="field">
-          <label for="pPromptText">To'liq prompt matni</label>
-          <textarea id="pPromptText" required placeholder="AI'ga yuboriladigan to'liq prompt matnini shu yerga yozing..."></textarea>
-          <div class="field-hint">Bepul promptlarda bu matn to'liq ko'rinadi. Pullik promptlarda faqat qisqa qismi ko'rinadi.</div>
-        </div>
-        <button type="submit" class="btn btn-cta btn-block" id="submitBtn">Qo'shish</button>
-        <button type="button" class="btn btn-ghost btn-block" id="cancelEditBtn" style="display:none; margin-top:10px;">Tahrirlashni bekor qilish</button>
-      </form>
+      </div>
     </div>
 
-    <!-- O'ng: ro'yxat -->
-    <div class="admin-table-wrap">
-      <div class="admin-table-head">
-        <h2>Barcha promptlar</h2>
-        <span class="admin-count" id="adminCount">0 ta</span>
-      </div>
-      <div id="adminList">
-        <div class="loader">Yuklanmoqda...</div>
+    <!-- PAPKA ICHIDAGI PROMPTLAR PANELI -->
+    <div id="folderPromptsPanel" style="display:none;">
+      <button class="btn btn-ghost" id="backToFoldersBtn" style="margin-bottom:16px;">← Papkalarga qaytish</button>
+      <h2 id="folderPromptsTitle" style="margin-bottom:20px;"></h2>
+
+      <div class="admin-layout">
+        <div class="admin-panel">
+          <h2 id="promptFormTitle">Yangi prompt qo'shish</h2>
+          <div class="form-error" id="promptFormError"></div>
+          <div class="form-success" id="promptFormSuccess"></div>
+          <div class="field-hint" id="promptLimitMsg" style="display:none; color:var(--danger); margin-bottom:12px;">Bu papkada limit (100 ta) to'lgan. Yangi qo'shish uchun avval birortasini o'chiring.</div>
+          <form id="promptForm">
+            <div class="field">
+              <label for="pTitle">Sarlavha</label>
+              <input type="text" id="pTitle" required placeholder="Masalan: Amir Temur davri — dars ishlanmasi">
+            </div>
+            <div class="field">
+              <label for="pCategory">Kategoriya (fan)</label>
+              <input type="text" id="pCategory" placeholder="Masalan: Tarix">
+            </div>
+            <div class="field">
+              <label for="pGrade">Sinf (ixtiyoriy)</label>
+              <input type="text" id="pGrade" placeholder="Masalan: 6-sinf">
+            </div>
+            <div class="field">
+              <label for="pDescription">Qisqa tavsif</label>
+              <input type="text" id="pDescription" placeholder="1 gapda: bu prompt nima uchun kerak">
+            </div>
+            <div class="field">
+              <label class="checkbox-label"><input type="checkbox" id="pIsFree"> Bu prompt — papkadagi BEPUL namuna</label>
+              <div class="field-hint">Odatda faqat bitta promptni bepul qiling — qolganlari papka sotib olingach ochiladi.</div>
+            </div>
+            <div class="field">
+              <label for="pPromptText">To'liq prompt matni</label>
+              <textarea id="pPromptText" required placeholder="AI'ga yuboriladigan to'liq prompt matnini shu yerga yozing..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-cta btn-block" id="promptSubmitBtn">Qo'shish</button>
+            <button type="button" class="btn btn-ghost btn-block" id="promptCancelEditBtn" style="display:none; margin-top:10px;">Tahrirlashni bekor qilish</button>
+          </form>
+        </div>
+
+        <div class="admin-table-wrap">
+          <div class="admin-table-head">
+            <h2>Papkadagi promptlar</h2>
+            <span class="admin-count" id="folderPromptsCount">0/100</span>
+          </div>
+          <div id="folderPromptsList">
+            <div class="loader">Yuklanmoqda...</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
+
+  <!-- ==================== SO'ROVLAR TAB ==================== -->
+  <div class="container admin-tabpanel" id="tab-requests">
+    <div class="admin-layout">
+      <div class="admin-panel">
+        <h2>Qo'lda ruxsat berish</h2>
+        <p class="field-hint" style="margin-bottom:16px;">So'rovsiz ham (masalan telefon orqali kelishilgan xaridor uchun) papkani to'g'ridan-to'g'ri ochib berish.</p>
+        <div class="form-success" id="manualGrantSuccess"></div>
+        <form id="manualGrantForm">
+          <div class="field">
+            <label for="manualFolderSelect">Papka</label>
+            <select id="manualFolderSelect" required></select>
+          </div>
+          <div class="field">
+            <label for="manualName">O'qituvchi ismi</label>
+            <input type="text" id="manualName" required>
+          </div>
+          <div class="field">
+            <label for="manualContact">Telegram username / telefon</label>
+            <input type="text" id="manualContact" required placeholder="@username yoki +998...">
+          </div>
+          <button type="submit" class="btn btn-cta btn-block">Ruxsat berish</button>
+        </form>
+      </div>
+
+      <div class="admin-table-wrap">
+        <div class="admin-table-head">
+          <h2>Xarid so'rovlari</h2>
+          <span class="admin-count" id="pendingCount">0 ta kutilmoqda</span>
+        </div>
+        <div id="requestsList">
+          <div class="loader">Yuklanmoqda...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>

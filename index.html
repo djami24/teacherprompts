@@ -96,10 +96,10 @@
       <p>To'liq katalogni ko'rish uchun "O'qituvchilar uchun" sahifasiga o'ting.</p>
     </div>
     <div class="filter-bar" style="justify-content:center; margin-bottom:36px;">
-      <span style="font-family:var(--font-mono); font-size:0.82rem; color:var(--text-muted);">Barcha kategoriyalarni ko'rish uchun katalogga o'ting →</span>
+      <span style="font-family:var(--font-mono); font-size:0.82rem; color:var(--text-muted);">Barcha papkalarni ko'rish uchun katalogga o'ting →</span>
     </div>
     <div class="prompt-grid" id="previewGrid">
-      <div class="loader">Promptlar yuklanmoqda...</div>
+      <div class="loader">Papkalar yuklanmoqda...</div>
     </div>
     <div style="text-align:center; margin-top:40px;">
       <a href="oqituvchi.html" class="btn btn-ghost">To'liq katalogni ko'rish →</a>
@@ -131,13 +131,14 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="js/firebase-config.js"></script>
+<script src="js/telegram-config.js"></script>
 <script src="js/main.js"></script>
 <script>
   document.getElementById('navToggle').addEventListener('click', () => {
     document.getElementById('navLinks').classList.toggle('open');
   });
-  // Bosh sahifada faqat dastlabki 3 ta promptni ko'rsatamiz
-  loadPrompts({ gridId: 'previewGrid', limitCount: 3, showFilters: false });
+  // Bosh sahifada faqat dastlabki 3 ta papkani ko'rsatamiz
+  loadFolders({ gridId: 'previewGrid', limitCount: 3 });
 </script>
 </body>
 </html>

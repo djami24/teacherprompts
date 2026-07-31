@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>O'qituvchilar uchun promptlar katalogi — PromptDaftar</title>
-<meta name="description" content="Fan va sinf bo'yicha qidiring, mos promptni toping va sotib oling.">
+<title>O'qituvchilar uchun prompt papkalari — PromptDaftar</title>
+<meta name="description" content="Fan bo'yicha papkalarni qidiring, bepul namunani ko'ring va to'liq papkani sotib oling.">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -31,8 +31,8 @@
   <div class="container" style="grid-template-columns: 1fr;">
     <div>
       <span class="hero-eyebrow">// katalog</span>
-      <h1 style="font-size: clamp(1.7rem, 3.5vw, 2.3rem);">O'qituvchilar uchun promptlar katalogi</h1>
-      <p class="lead">Fan, sinf yoki mavzu bo'yicha qidiring. Har bir prompt oldindan sinovdan o'tgan va o'zbek tilida ishlaydi.</p>
+      <h1 style="font-size: clamp(1.7rem, 3.5vw, 2.3rem);">O'qituvchilar uchun prompt papkalari</h1>
+      <p class="lead">Har bir papkada bir nechta prompt bor — bittasi bepul, qolganlari papkani sotib olgach ochiladi. Fan yoki mavzu bo'yicha qidiring.</p>
     </div>
   </div>
 </section>
@@ -40,11 +40,10 @@
 <section class="section">
   <div class="container">
     <div class="filter-bar" id="filterBar">
-      <button class="filter-chip active" data-cat="all">Barchasi</button>
-      <input class="search-input" id="searchInput" type="search" placeholder="Qidirish... (mavzu, fan)">
+      <input class="search-input" id="searchInput" type="search" placeholder="Qidirish... (papka nomi, mavzu)">
     </div>
     <div class="prompt-grid" id="catalogGrid">
-      <div class="loader">Promptlar yuklanmoqda...</div>
+      <div class="loader">Papkalar yuklanmoqda...</div>
     </div>
   </div>
 </section>
@@ -71,12 +70,13 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="js/firebase-config.js"></script>
+<script src="js/telegram-config.js"></script>
 <script src="js/main.js"></script>
 <script>
   document.getElementById('navToggle').addEventListener('click', () => {
     document.getElementById('navLinks').classList.toggle('open');
   });
-  loadPrompts({ gridId: 'catalogGrid', showFilters: true, filterBarId: 'filterBar', searchInputId: 'searchInput' });
+  loadFolders({ gridId: 'catalogGrid', searchInputId: 'searchInput' });
 </script>
 </body>
 </html>
