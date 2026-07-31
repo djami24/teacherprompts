@@ -228,27 +228,34 @@ function renderFolderPage(rootId) {
           <span class="prompt-tag">${escapeHtml(p.category || "Umumiy")}${p.grade ? " · " + escapeHtml(p.grade) : ""}</span>
           ${p.isFree ? `<span class="price-sticker free">Bepul</span>` : (HAS_ACCESS ? `<span class="price-sticker free">Ochilgan ✓</span>` : `<span class="price-sticker">🔒</span>`)}
         </div>
-        <h3>${escapeHtml(p.title)}</h3>
+        <div class="prompt-card-header">
+          <button type="button" class="prompt-toggle" aria-expanded="false" aria-label="Kengaytirish">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+          <h3>${escapeHtml(p.title)}</h3>
+        </div>
+        <div class="prompt-card-body">
         <p class="desc">${escapeHtml(p.description || "")}</p>
         <div class="prompt-preview ${unlocked ? "" : "locked"}">${
           unlocked ? `<strong>Eng:</strong><br>` + escapeHtml(p.promptText || "") : escapeHtml(truncate(p.promptText || "", 140))
         }</div>
         ${
           unlocked
-            ? `<button class="btn btn-cta btn-block copy-prompt-btn" data-id="${p.id}" data-lang="en">Nusxa olish (inglizcha)</button>`
+            ? `<button class="btn btn-cta btn-sm btn-block copy-prompt-btn" data-id="${p.id}" data-lang="en">Nusxa olish (inglizcha)</button>`
             : ""
         }
         ${
           unlocked && p.promptTextUz
             ? `<div class="prompt-preview prompt-translation"><strong>Uzb:</strong><br>${escapeHtml(p.promptTextUz)}</div>
-               <button class="btn btn-outline btn-block copy-prompt-btn" data-id="${p.id}" data-lang="uz">Nusxa olish (o'zbekcha)</button>`
+               <button class="btn btn-outline btn-sm btn-block copy-prompt-btn" data-id="${p.id}" data-lang="uz">Nusxa olish (o'zbekcha)</button>`
             : ""
         }
         ${
           !unlocked
-            ? `<button class="btn btn-ghost btn-block">Qulflangan — papkani sotib oling</button>`
+            ? `<button class="btn btn-ghost btn-sm btn-block">Qulflangan — papkani sotib oling</button>`
             : ""
         }
+        </div>
       </article>
     `;
   }).join("");
@@ -277,6 +284,16 @@ function renderFolderPage(rootId) {
 
   const buyBtn = document.getElementById("buyFolderBtn");
   if (buyBtn) buyBtn.addEventListener("click", () => openPurchaseModal(f));
+
+  root.querySelectorAll(".prompt-toggle").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const card = btn.closest(".prompt-card");
+      const body = card.querySelector(".prompt-card-body");
+      const isOpen = card.classList.toggle("is-open");
+      btn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      if (body) body.style.display = isOpen ? "flex" : "none";
+    });
+  });
 
   root.querySelectorAll(".copy-prompt-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
