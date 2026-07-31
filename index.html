@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PromptDaftar — O'qituvchilar uchun tayyor AI promptlari</title>
+<meta name="description" content="O'qituvchilar uchun dars ishlanmasi, testlar va materiallar tayyorlashda yordam beruvchi tayyor AI promptlari to'plami.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <a href="index.html" class="brand">
+      <span class="brand-mark">Pd</span>
+      PromptDaftar
+    </a>
+    <nav class="nav-links" id="navLinks">
+      <a href="index.html" class="active">Bosh sahifa</a>
+      <a href="oqituvchi.html">O'qituvchilar uchun</a>
+      <a href="#qanday-ishlaydi">Qanday ishlaydi</a>
+      <a href="oqituvchi.html" class="btn btn-cta">Promptlarni ko'rish</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="Menyu">☰</button>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="container">
+    <div>
+      <span class="hero-eyebrow">// o'qituvchilar uchun tayyor promptlar</span>
+      <h1>Darslikka emas, ChatGPT'ga ishlagan promptlar yozamiz.</h1>
+      <p class="lead">Dars ishlanmasi, nazorat ishi, ota-onalar uchun xat, taqdimot matni — buларning barchasini bir necha soniyada tayyor promptlar yordamida yarating. Sinab ko'rilgan, o'zbek tilida ishlaydigan promptlar.</p>
+      <div class="hero-actions">
+        <a href="oqituvchi.html" class="btn btn-cta">Katalogni ko'rish</a>
+        <a href="#qanday-ishlaydi" class="btn btn-outline">Qanday ishlaydi?</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><strong id="statCount">—</strong><span>tayyor prompt</span></div>
+        <div class="hero-stat"><strong>9+</strong><span>fan yo'nalishi</span></div>
+        <div class="hero-stat"><strong>5 daq</strong><span>o'rtacha tayyorlov vaqti</span></div>
+      </div>
+    </div>
+    <div class="hero-card-stack">
+      <div class="mini-card card-3">
+        <span class="tag">Tarix · 6-sinf</span>
+        <p>"Sen tajribali tarix o'qituvchisisan. Amir Temur davri bo'yicha 45 daqiqalik..."</p>
+      </div>
+      <div class="mini-card card-2">
+        <span class="tag">Ona tili · Test</span>
+        <p>"20 ta savoldan iborat, 4 variantli test tuz. Mavzu: Ega va kesim..."</p>
+      </div>
+      <div class="mini-card card-1">
+        <span class="tag">Ota-onalar bilan</span>
+        <p>"O'quvchining oxirgi chorak natijalari haqida iliq, lekin aniq xat yoz..."</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="qanday-ishlaydi">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Jarayon</span>
+      <h2>Uch qadamda tayyor materialga ega bo'ling</h2>
+      <p>Prompt yozish san'atini o'rganish shart emas — biz allaqachon sinab ko'rgan promptlarni ishlatasiz.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <span class="step-num">01</span>
+        <h3>Kerakli promptni tanlang</h3>
+        <p>Fan, sinf yoki mavzu bo'yicha katalogdan mos promptni toping va namunasini o'qing.</p>
+      </div>
+      <div class="step">
+        <span class="step-num">02</span>
+        <h3>Sotib oling</h3>
+        <p>Bir martalik to'lov bilan to'liq prompt matnini oling — istalgan AI chatbotda ishlatishingiz mumkin.</p>
+      </div>
+      <div class="step">
+        <span class="step-num">03</span>
+        <h3>Nusxa olib, ishlating</h3>
+        <p>Promptni ChatGPT yoki boshqa AI'ga joylashtiring — 1 daqiqada tayyor material qo'lingizda.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Katalogdan namuna</span>
+      <h2>So'nggi qo'shilgan promptlar</h2>
+      <p>To'liq katalogni ko'rish uchun "O'qituvchilar uchun" sahifasiga o'ting.</p>
+    </div>
+    <div class="filter-bar" style="justify-content:center; margin-bottom:36px;">
+      <span style="font-family:var(--font-mono); font-size:0.82rem; color:var(--text-muted);">Barcha kategoriyalarni ko'rish uchun katalogga o'ting →</span>
+    </div>
+    <div class="prompt-grid" id="previewGrid">
+      <div class="loader">Promptlar yuklanmoqda...</div>
+    </div>
+    <div style="text-align:center; margin-top:40px;">
+      <a href="oqituvchi.html" class="btn btn-ghost">To'liq katalogni ko'rish →</a>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container">
+    <div>
+      <div class="footer-brand">PromptDaftar</div>
+      <p style="margin-top:8px; max-width:34ch; color:#8b978d;">O'qituvchilar uchun tayyor AI promptlari to'plami.</p>
+    </div>
+    <div class="footer-links">
+      <a href="index.html">Bosh sahifa</a>
+      <a href="oqituvchi.html">Promptlar</a>
+      <a href="admin.html">Admin</a>
+    </div>
+  </div>
+</footer>
+
+<!-- Prompt tafsilot modal -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<!-- Firebase SDK (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/main.js"></script>
+<script>
+  document.getElementById('navToggle').addEventListener('click', () => {
+    document.getElementById('navLinks').classList.toggle('open');
+  });
+  // Bosh sahifada faqat dastlabki 3 ta promptni ko'rsatamiz
+  loadPrompts({ gridId: 'previewGrid', limitCount: 3, showFilters: false });
+</script>
+</body>
+</html>
